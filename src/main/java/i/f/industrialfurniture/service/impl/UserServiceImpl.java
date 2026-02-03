@@ -363,6 +363,33 @@ public class UserServiceImpl implements UserService {
                 .toList();
     }
 
+    @Override
+    public List<GetProductsUserDto> getProductsUserDto() {
+        List<Product> products = productRepo.findAll();
+        return products.stream()
+                .map(this::toProduct)
+                .toList();
+    }
+
+    private GetProductsUserDto toProduct(Product product) {
+        GetPhotoDto photoDto = null;
+
+        // Проверяем есть ли у продукта фото
+        if (product.getPhotos() != null && !product.getPhotos().isEmpty()) {
+            ProductImage firstPhoto = product.getPhotos().get(0);
+            photoDto = new GetPhotoDto(
+                    firstPhoto.getId() == null ? null : firstPhoto.getId(),
+                    firstPhoto.getUrl()
+            );
+        }
+        return new GetProductsUserDto(
+                product.getId(),
+                product.getProductName(),
+                product.getPrice(),
+                photoDto
+        );
+    }
+
     private GetCategoriesUserDto toCategory(Category category) {
         return new GetCategoriesUserDto(
                 category.getId(),

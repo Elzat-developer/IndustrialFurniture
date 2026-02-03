@@ -35,10 +35,11 @@ public class UserController {
         return ResponseEntity.ok(techSpecDtoList);
     }
     @GetMapping("/get_products")
-    public ResponseEntity<List<GetProductsDto>> getProducts(){
-        List<GetProductsDto> getProductsList = adminService.getProducts();
-        return ResponseEntity.ok(getProductsList);
+    public ResponseEntity<List<GetProductsUserDto>> getProductsUserDto(){
+        List<GetProductsUserDto> getProductsUserDtoList = userService.getProductsUserDto();
+        return ResponseEntity.ok(getProductsUserDtoList);
     }
+
     @GetMapping("/get_product/{product_id}")
     public ResponseEntity<GetProductDto> getProduct(@PathVariable Integer product_id){
         GetProductDto getProductDto = adminService.getProduct(product_id);

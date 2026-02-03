@@ -42,4 +42,6 @@ public interface UserService {
     NewsIdDto getNewsId(Integer newsId);
 
     List<GetCategoriesUserDto> getCategories();
+
+    List<GetProductsUserDto> getProductsUserDto();
 }

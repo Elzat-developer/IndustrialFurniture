@@ -69,6 +69,11 @@ public class AdminController {
         adminService.deleteOrder(order_id);
         return ResponseEntity.ok("Delete Order");
     }
+    @GetMapping("/get_products")
+    public ResponseEntity<List<GetProductsDto>> getProducts(){
+        List<GetProductsDto> getProductsList = adminService.getProducts();
+        return ResponseEntity.ok(getProductsList);
+    }
     @PostMapping(value = "/create_product",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> createProduct(@ModelAttribute CreateProductDto createProductDto){
         adminService.createProduct(createProductDto);
