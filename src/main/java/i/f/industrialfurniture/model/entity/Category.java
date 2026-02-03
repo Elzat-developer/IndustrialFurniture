@@ -1,4 +1,4 @@
-package i.f.industrialfurniture.entity;
+package i.f.industrialfurniture.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -14,4 +14,6 @@ public class Category {
     @Column(name = "category_name")
     private String categoryName;
     private String description;
+    @Column(name = "photo_url")
+    private String photoUrl;
 }

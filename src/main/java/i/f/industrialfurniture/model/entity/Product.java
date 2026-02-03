@@ -1,4 +1,4 @@
-package i.f.industrialfurniture.entity;
+package i.f.industrialfurniture.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -34,11 +34,6 @@ public class Product {
     @OneToOne
     @JoinColumn(name = "category_id")
     private Category category;
-//    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-//    @OrderColumn(name = "photo_order_index")
-//    private List<ProductImage> photos = new ArrayList<>();
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OrderItem> orderItems;
-    @ManyToMany(mappedBy = "products")
-    private List<Order> orders;
+    private List<ProductImage> photos = new ArrayList<>();
 }

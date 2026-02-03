@@ -1,4 +1,4 @@
-package i.f.industrialfurniture.entity;
+package i.f.industrialfurniture.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -22,5 +22,9 @@ public class CartItem {
         this.cart = cart;
         this.product = product;
         this.quantity = quantity;
+    }
+
+    public CartItem() {
+
     }
 }

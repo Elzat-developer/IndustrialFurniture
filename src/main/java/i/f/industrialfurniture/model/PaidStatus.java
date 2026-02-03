@@ -1,2 +1,6 @@
-package i.f.industrialfurniture.model;public enum PaidStatus {
+package i.f.industrialfurniture.model;
+
+public enum PaidStatus {
+    PAID,
+    NOTPAY
 }

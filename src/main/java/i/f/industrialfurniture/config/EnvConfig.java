@@ -1,2 +1,9 @@
-package i.f.industrialfurniture.config;public class EnvConfig {
+package i.f.industrialfurniture.config;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+
+@Configuration
+@PropertySource(value = "file:.env", ignoreResourceNotFound = true)
+public class EnvConfig {
 }

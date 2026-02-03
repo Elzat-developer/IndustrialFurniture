@@ -1,2 +1,9 @@
-package i.f.industrialfurniture.repositories;public interface CategoryRepo {
+package i.f.industrialfurniture.repositories;
+
+import i.f.industrialfurniture.model.entity.Category;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface CategoryRepo extends JpaRepository<Category,Integer> {
 }

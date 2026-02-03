@@ -1,4 +1,4 @@
-package i.f.industrialfurniture.entity;
+package i.f.industrialfurniture.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;

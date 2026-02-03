@@ -1,4 +1,4 @@
-package i.f.industrialfurniture.entity;
+package i.f.industrialfurniture.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -12,7 +12,7 @@ public class ProductImage {
     @Column(name = "id", nullable = false)
     private Integer id;
     private String url;
-    @OneToOne
-    @JoinColumn(name = "product_id")
+    @ManyToOne
+    @JoinColumn(name = "product_id",referencedColumnName = "id")
     private Product product;
 }

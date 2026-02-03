@@ -1,4 +1,4 @@
-package i.f.industrialfurniture.entity;
+package i.f.industrialfurniture.model.entity;
 
 import i.f.industrialfurniture.model.PaidStatus;
 import jakarta.persistence.*;

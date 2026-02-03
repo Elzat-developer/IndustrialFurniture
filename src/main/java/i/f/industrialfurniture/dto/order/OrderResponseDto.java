@@ -1,2 +1,9 @@
-package i.f.industrialfurniture.dto.order;public record OrderResponseDto() {
-}
+package i.f.industrialfurniture.dto.order;
+
+import java.math.BigDecimal;
+
+public record OrderResponseDto(
+        String orderNumber,
+        BigDecimal totalPrice,
+        String whatsappLink
+) {}

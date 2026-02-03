@@ -1,2 +1,7 @@
-package i.f.industrialfurniture.dto.user;public class PromotionDto {
+package i.f.industrialfurniture.dto.user;
+
+public record PromotionDto(
+        Integer promotion_id,
+        String urlPhoto
+) {
 }

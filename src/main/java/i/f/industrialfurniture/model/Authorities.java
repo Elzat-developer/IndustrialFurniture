@@ -1,2 +1,6 @@
-package i.f.industrialfurniture.model;public class Authorities {
+package i.f.industrialfurniture.model;
+
+public enum Authorities {
+    USER,
+    ADMIN
 }
