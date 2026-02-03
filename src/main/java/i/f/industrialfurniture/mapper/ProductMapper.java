@@ -14,6 +14,7 @@ public interface ProductMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "category", ignore = true)
+    @Mapping(target = "active", ignore = true)
     @Mapping(target = "photos", ignore = true)
     void updateProductFromDto(EditProductDto dto, @MappingTarget Product entity);
     @Mapping(target = "id", ignore = true)

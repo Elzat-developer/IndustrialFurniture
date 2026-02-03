@@ -13,7 +13,7 @@ public class ProductSpecifications {
 
     public static Specification<Product> hasMaterial(String material) {
         return (root, query, cb) -> (material == null || material.isEmpty()) ? null :
-                cb.like(root.get("material"), "%" + material + "%");
+                cb.like(cb.lower(root.get("material")), "%" + material.toLowerCase() + "%");
     }
 
     public static Specification<Product> priceBetween(BigDecimal min, BigDecimal max) {

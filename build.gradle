@@ -47,7 +47,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-mysql'
     runtimeOnly 'com.mysql:mysql-connector-j'
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
 
     // Основная библиотека для Excel
     implementation 'org.apache.poi:poi:5.2.3'

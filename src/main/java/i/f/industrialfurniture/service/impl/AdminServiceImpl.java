@@ -100,7 +100,7 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
 
         productMapper.updateProductFromDto(editProduct,product);
-
+        product.setActive(true);
         if (editProduct.categoryId() != null) {
             Category category = categoryRepo.findById(editProduct.categoryId())
                     .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
@@ -178,11 +178,11 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<GetProductsDto> findProducts(Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice) {
-        Specification<Product> spec = Specification.where(
-                ProductSpecifications.hasCategory(categoryId))
-                .and(ProductSpecifications.hasMaterial(material))
-                .and(ProductSpecifications.priceBetween(minPrice, maxPrice)
-                );
+        Specification<Product> spec = Specification.allOf(
+                ProductSpecifications.hasCategory(categoryId),
+                ProductSpecifications.hasMaterial(material),
+                ProductSpecifications.priceBetween(minPrice, maxPrice)
+        );
 
         return productRepo.findAll(spec).stream()
                 .map(this::toProductsAll)
