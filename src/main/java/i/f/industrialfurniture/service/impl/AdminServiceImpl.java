@@ -690,29 +690,33 @@ public class AdminServiceImpl implements AdminService {
 
     private String processMultipartFile(MultipartFile multipartFile, Path uploadDir) {
         String originalFilename = multipartFile.getOriginalFilename();
-        String fileName = UUID.randomUUID() + "_" + originalFilename;
-        Path filePath = uploadDir.resolve(fileName);
+        // 1. Генерируем базовое имя без расширения
+        String baseName = UUID.randomUUID().toString();
+        String contentType = multipartFile.getContentType();
 
         try {
-            String contentType = multipartFile.getContentType();
-
-            // Проверяем, является ли файл изображением (jpg, png, webp)
             if (contentType.startsWith("image/")) {
                 log.info("📸 Сжимаем изображение: {}", originalFilename);
 
+                // 2. Всегда сохраняем как .jpg для максимальной совместимости
+                String fileName = baseName + ".jpg";
+                Path filePath = uploadDir.resolve(fileName);
+
                 net.coobird.thumbnailator.Thumbnails.of(multipartFile.getInputStream())
-                        .size(1600, 1600)        // Максимальное разрешение (ширина или высота)
-                        .outputQuality(0.8)      // Качество 80% (идеальный баланс)
-                        .allowOverwrite(true)
+                        .size(1600, 1600)
+                        .outputQuality(0.8)
+                        .outputFormat("jpg") // !!! Явно указываем формат для записи
                         .toFile(filePath.toFile());
 
+                return filePath.toString();
             } else {
-                // Если это не картинка (например, PDF или другой документ), сохраняем как есть
+                // Если это не картинка (например, PDF), сохраняем с оригинальным расширением
+                String fileName = baseName + "_" + originalFilename;
+                Path filePath = uploadDir.resolve(fileName);
                 log.info("📄 Сохраняем файл без сжатия: {}", originalFilename);
                 multipartFile.transferTo(filePath);
+                return filePath.toString();
             }
-
-            return filePath.toString();
         } catch (IOException e) {
             log.error("❌ Ошибка при сохранении или сжатии '{}': {}", originalFilename, e.getMessage(), e);
             throw new RuntimeException("Ошибка при обработке файла", e);

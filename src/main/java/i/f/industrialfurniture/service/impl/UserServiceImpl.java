@@ -5,6 +5,7 @@ import i.f.industrialfurniture.dto.user.*;
 import i.f.industrialfurniture.model.PaidStatus;
 import i.f.industrialfurniture.model.entity.*;
 import i.f.industrialfurniture.repositories.*;
+import i.f.industrialfurniture.service.ProductPhotoService;
 import i.f.industrialfurniture.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,8 @@ import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 
 @Service
@@ -41,6 +44,7 @@ public class UserServiceImpl implements UserService {
     private final NewsRepo newsRepo;
     private final CompanyRepo companyRepo;
     private final CategoryRepo categoryRepo;
+    private final ProductPhotoService productPhotoService;
     @Override
     public byte[] generateExcelPriceList(List<CartItemDto> items) {
         if (items == null || items.isEmpty()) {
@@ -269,17 +273,34 @@ public class UserServiceImpl implements UserService {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Заказ не найден!"));
 
+        // 1. Собираем список всех ID продуктов в этом заказе
+        List<Integer> productIds = order.getItems().stream()
+                .map(OrderItem::getProductId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        // 2. Получаем мапу (ID продукта -> Объект фото или URL)
+        // Предположим, метод findPhotosByProductIds возвращает Map<Integer, GetPhotoDto>
+        Map<Integer, GetPhotoDto> photoMap = productPhotoService.getPhotosForProducts(productIds);
+
         List<OrderItemDto> items = order.getItems().stream()
-                .map(item -> new OrderItemDto(
-                        item.getQuantity(),
-                        new OrderItemProductDTOS(
-                                item.getProductId() == null ? null : item.getProductId(),
-                                item.getProductName(),
-                                item.getPriceAtPurchase(),
-                                new GetPhotoDto(1,"url"),
-                                item.getProductActive()
-                        )
-                )).toList();
+                .map(item -> {
+                    // Достаем фото из мапы по ID продукта, если нет — ставим заглушку или null
+                    GetPhotoDto photo = photoMap.getOrDefault(item.getProductId(),
+                            new GetPhotoDto(0, "default_url"));
+
+                    return new OrderItemDto(
+                            item.getQuantity(),
+                            new OrderItemProductDTOS(
+                                    item.getProductId(),
+                                    item.getProductName(),
+                                    item.getPriceAtPurchase(),
+                                    photo, // Теперь здесь реальное фото
+                                    item.getProductActive()
+                            )
+                    );
+                }).toList();
 
         return new OrderDetailsDto(
                 order.getId(),
@@ -287,8 +308,8 @@ public class UserServiceImpl implements UserService {
                 order.getTotalPrice(),
                 order.getPaidStatus(),
                 order.getOrderStartDate(),
-                "https://wa.me/77472164664?text=Вопрос по заказу №" + order.getOrderNumber(),
-                items // Вот здесь наши продукты
+                "https://wa.me/77472164664?text=Хочу сделать повторный заказ №" + order.getOrderNumber(),
+                items
         );
     }
 

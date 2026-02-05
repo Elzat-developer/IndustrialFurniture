@@ -87,7 +87,6 @@ public class SecurityConfiguration {
                 "http://localhost:3000",
                 "http://localhost:3001",
                 "http://127.0.0.1:3000",
-                "http://192.168.1.110:3000",
 
                 // Прочие локальные хосты
                 "http://127.0.0.1:5500",

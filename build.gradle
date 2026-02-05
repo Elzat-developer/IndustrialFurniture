@@ -56,6 +56,9 @@ dependencies {
     // Для сжатия фото
     implementation 'net.coobird:thumbnailator:0.4.21'
     implementation 'commons-io:commons-io:2.15.1'
+    implementation 'com.twelvemonkeys.imageio:imageio-webp:3.12.0'
+    implementation 'com.twelvemonkeys.imageio:imageio-core:3.12.0'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
