@@ -1,5 +1,6 @@
 package i.f.industrialfurniture.model.entity;
 
+import i.f.industrialfurniture.model.CategoryType;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -16,4 +17,9 @@ public class Category {
     private String description;
     @Column(name = "photo_url")
     private String photoUrl;
+    @Column(name = "category_type")
+    @Enumerated(EnumType.STRING)
+    private CategoryType categoryType;
+    @Column(name = "active", nullable = false)
+    private Boolean active = true;
 }

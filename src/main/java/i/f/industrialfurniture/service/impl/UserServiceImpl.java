@@ -1,33 +1,36 @@
 package i.f.industrialfurniture.service.impl;
 
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import i.f.industrialfurniture.dto.order.*;
 import i.f.industrialfurniture.dto.user.*;
+import i.f.industrialfurniture.model.CategoryType;
 import i.f.industrialfurniture.model.PaidStatus;
+import i.f.industrialfurniture.model.ProductType;
 import i.f.industrialfurniture.model.entity.*;
 import i.f.industrialfurniture.repositories.*;
 import i.f.industrialfurniture.service.ProductPhotoService;
 import i.f.industrialfurniture.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Random;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -45,109 +48,87 @@ public class UserServiceImpl implements UserService {
     private final CompanyRepo companyRepo;
     private final CategoryRepo categoryRepo;
     private final ProductPhotoService productPhotoService;
+    private final TemplateEngine templateEngine;
     @Override
-    public byte[] generateExcelPriceList(List<CartItemDto> items) {
-        if (items == null || items.isEmpty()) {
-            return new byte[0];
-        }
-
-        try (Workbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-            Sheet sheet = workbook.createSheet("Коммерческое предложение");
-
-            // 1. Стили
-            CellStyle headerStyle = workbook.createCellStyle();
-            Font font = workbook.createFont();
-            font.setBold(true);
-            headerStyle.setFont(font);
-
-            // Стиль для денежных ячеек (чтобы в Excel они выглядели как валюта)
-            CellStyle currencyStyle = workbook.createCellStyle();
-            DataFormat df = workbook.createDataFormat();
-            currencyStyle.setDataFormat(df.getFormat("#,##0.00"));
-
-            // 2. Шапка
-            String[] columns = {"Название товара", "Цена за ед.", "Кол-во", "Итого"};
-            Row headerRow = sheet.createRow(0);
-            for (int i = 0; i < columns.length; i++) {
-                Cell cell = headerRow.createCell(i);
-                cell.setCellValue(columns[i]);
-                cell.setCellStyle(headerStyle);
-            }
-
-            // 3. Данные
-            int rowIdx = 1;
-            BigDecimal totalSum = BigDecimal.ZERO; // Инициализируем нулем для BigDecimal
-
-            for (CartItemDto item : items) {
-                Row row = sheet.createRow(rowIdx++);
-
-                // РАСЧЕТ: цена * количество
-                BigDecimal itemTotal = item.productPrice().multiply(BigDecimal.valueOf(item.quantity()));
-                totalSum = totalSum.add(itemTotal); // Прибавляем к общей сумме
-
-                row.createCell(0).setCellValue(item.productName());
-
-                // Записываем цену и применяем стиль валюты
-                Cell priceCell = row.createCell(1);
-                priceCell.setCellValue(item.productPrice().doubleValue()); // Excel принимает double
-                priceCell.setCellStyle(currencyStyle);
-
-                row.createCell(2).setCellValue(item.quantity());
-
-                // Записываем итог по строке
-                Cell itemTotalCell = row.createCell(3);
-                itemTotalCell.setCellValue(itemTotal.doubleValue());
-                itemTotalCell.setCellStyle(currencyStyle);
-            }
-
-            // 4. ИТОГО
-            Row totalRow = sheet.createRow(rowIdx + 1);
-            Cell totalLabelCell = totalRow.createCell(2);
-            totalLabelCell.setCellValue("ИТОГО к оплате:");
-            totalLabelCell.setCellStyle(headerStyle);
-
-            Cell totalValueCell = totalRow.createCell(3);
-            totalValueCell.setCellValue(totalSum.doubleValue());
-            totalValueCell.setCellStyle(headerStyle); // Можно добавить и currencyStyle сюда через объединение стилей
-
-            for (int i = 0; i < columns.length; i++) {
-                sheet.autoSizeColumn(i);
-            }
-
-            workbook.write(out);
-            return out.toByteArray();
-
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to generate Excel", e);
-        }
-    }
-
-    @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public CartDto getCart(String cartToken) {
         Cart cart = cartRepo.findByCartToken(cartToken)
                 .orElseGet(() -> createNewCart(cartToken));
-        List<CartItemDto> dtos = cart.getItems().stream()
-                .map(item -> new CartItemDto(
-                        item.getId() == null ? null : item.getId(),
-                        item.getProduct().getId() == null ? null : item.getProduct().getId(),
-                        item.getProduct().getProductName(),
-                        item.getQuantity(),
-                        item.getProduct().getPrice(),
-                        item.getProduct().getTag(),
-                        item.getProduct().isActive()
-                )).toList();
 
-        // Считаем общую сумму через BigDecimal
-        BigDecimal total = dtos.stream()
+        List<CartItemDto> cartItemDtoList = cart.getItems().stream()
+                .map(item -> {
+                    Product product = item.getProduct();
+
+                    // 1. Безопасное получение фото
+                    GetPhotoDto photo = null;
+                    if (product.getPhotos() != null && !product.getPhotos().isEmpty()) {
+                        photo = new GetPhotoDto(
+                                product.getPhotos().get(0).getId(),
+                                product.getPhotos().get(0).getUrl()
+                        );
+                    }
+
+                    // 2. Формирование характеристик (объединяем важные поля в текст)
+                    String chars = formatCharacteristics(product);
+
+                    return new CartItemDto(
+                            item.getId() != null ? item.getId() : null,
+                            product.getId() != null ? product.getId() : null,
+                            product.getProductName(),
+                            item.getQuantity(),
+                            product.getPrice(),
+                            product.getTag(),
+                            product.isActive(),
+                            chars,
+                            photo,
+                            "3 рабочих дня" // Можно зашить в БД или оставить так
+                    );
+                }).toList();
+
+        BigDecimal total = cartItemDtoList.stream()
                 .map(item -> item.productPrice().multiply(BigDecimal.valueOf(item.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return new CartDto(cart.getId(), dtos, total);
+        return new CartDto(cart.getId(), cartItemDtoList, total);
+    }
+    // Вспомогательный метод для красивого вывода характеристик в PDF/Корзине
+    private String formatCharacteristics(Product product) {
+        StringBuilder sb = new StringBuilder();
+
+        // Вспомогательная функция, чтобы не писать if 10 раз
+        addDetail(sb, "Материал", product.getMaterial());
+        addDetail(sb, "Мощность", product.getPower());
+        addDetail(sb, "Вес", String.valueOf(product.getWeight()));
+        addDetail(sb, "Напряжение", product.getVoltage());
+
+        // Габариты лучше объединить в одну строку
+        if (product.getWidth() != null || product.getDepth() != null || product.getHeight() != null) {
+            sb.append("Габариты: ")
+                    .append(product.getWidth()).append("x")
+                    .append(product.getDepth()).append("x")
+                    .append(product.getHeight()).append(" мм; ");
+        }
+
+        // Обработка Map (Specifications)
+        if (product.getSpecifications() != null && !product.getSpecifications().isEmpty()) {
+            product.getSpecifications().forEach((key, value) -> {
+                if (value != null && !value.isEmpty()) {
+                    sb.append(key).append(": ").append(value).append("; ");
+                }
+            });
+        }
+
+        addDetail(sb, "Страна", product.getCountry());
+
+        return sb.toString().trim();
     }
 
+    // Утилитарный метод для чистоты кода
+    private void addDetail(StringBuilder sb, String label, String value) {
+        if (value != null && !value.isEmpty()) {
+            sb.append(label).append(": ").append(value).append("; ");
+        }
+    }
     @Override
     @Transactional
     public void addProductToCart(String cartToken, AddToCartDto dto) {
@@ -377,21 +358,88 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<GetCategoriesUserDto> getCategories() {
-        List<Category> categories = categoryRepo.findAll();
+    public List<GetCategoriesUserDto> getCategories(CategoryType categoryType) {
+        List<Category> categories = categoryRepo.findAllByCategoryType(categoryType);
         return categories.stream()
                 .map(this::toCategory)
                 .toList();
     }
 
     @Override
-    public List<GetProductsUserDto> getProductsUserDto() {
-        List<Product> products = productRepo.findAll();
+    public List<GetProductsUserDto> getProductsUserDto(ProductType productType) {
+        List<Product> products = productRepo.findAllByProductType(productType);
         return products.stream()
                 .map(this::toProduct)
                 .toList();
     }
 
+    @Override
+    public byte[] generateCpPdf(List<CartItemDto> items, BigDecimal totalSum) {
+        List<Map<String, Object>> pdfItems = items.stream().map(item -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("productName", item.productName());
+            map.put("tag", item.tag());
+            map.put("characteristics", item.characteristics());
+            map.put("quantity", item.quantity());
+            map.put("productPrice", item.productPrice());
+            map.put("deliveryTerms", item.deliveryTerms());
+
+            // Магия здесь: превращаем URL в Base64 прямо перед генерацией
+            if (item.photoDto() != null) {
+                map.put("photoBase64", getBase64ImageFromUrl(item.photoDto().photoURL()));
+            }
+
+            return map;
+        }).toList();
+
+        Context context = new Context();
+        context.setVariable("items", pdfItems);
+        context.setVariable("totalSum", totalSum);
+        context.setVariable("date", LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")));
+
+        String htmlContent = templateEngine.process("cp_template", context);
+
+        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+            PdfRendererBuilder builder = new PdfRendererBuilder();
+            builder.useFastMode();
+
+            // Не забываем шрифт для кириллицы!
+            builder.useFont(() -> getClass().getResourceAsStream("/fonts/arial.ttf"), "Arial");
+
+            builder.withHtmlContent(htmlContent, "/");
+            builder.toStream(os);
+            builder.run();
+            return os.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка при создании PDF", e);
+        }
+    }
+    private String getBase64ImageFromUrl(String fileUrl) {
+        try {
+            if (fileUrl == null || fileUrl.isEmpty()) return null;
+
+            // 1. Извлекаем только имя файла из URL (например, из "http://.../uploads/1.jpg" достаем "1.jpg")
+            String fileName = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
+
+            // 2. Укажи путь к папке, где физически лежат файлы (та, что проброшена в /uploads/**)
+            // Если папка uploads лежит в корне проекта:
+            Path path = Paths.get("uploads").resolve(fileName).toAbsolutePath();
+
+            if (!Files.exists(path)) {
+                System.err.println("Файл не найден по пути: " + path);
+                return null;
+            }
+
+            // 3. Читаем и конвертируем
+            byte[] imageBytes = Files.readAllBytes(path);
+            String base64 = Base64.getEncoder().encodeToString(imageBytes);
+            String extension = fileName.substring(fileName.lastIndexOf(".") + 1);
+
+            return "data:image/" + extension + ";base64," + base64;
+        } catch (Exception e) {
+            return null;
+        }
+    }
     private GetProductsUserDto toProduct(Product product) {
         GetPhotoDto photoDto = null;
 
@@ -407,6 +455,9 @@ public class UserServiceImpl implements UserService {
                 product.getId(),
                 product.getProductName(),
                 product.getPrice(),
+                product.getMaterial(),
+                product.getCategory().getId(),
+                product.getProductType(),
                 photoDto
         );
     }
@@ -415,7 +466,8 @@ public class UserServiceImpl implements UserService {
         return new GetCategoriesUserDto(
                 category.getId(),
                 category.getCategoryName(),
-                category.getPhotoUrl()
+                category.getPhotoUrl(),
+                category.getCategoryType()
         );
     }
 

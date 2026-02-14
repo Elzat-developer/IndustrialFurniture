@@ -23,6 +23,9 @@ public record CartItemDto(
         @Schema(description = "Артикуль товара", example = "Куртка кожаная")
         String tag,
         @Schema(description = "Активность продута",example = "true")
-        Boolean productActive
+        Boolean productActive,
+        String characteristics, // Новое: детальное описание
+        GetPhotoDto photoDto,      // Новое: путь к файлу или URL изображения
+        String deliveryTerms  // Новое: срок поставки (например, "3 рабочих дня")
 ) {
 }

@@ -3,7 +3,9 @@ package i.f.industrialfurniture.controller;
 import i.f.industrialfurniture.dto.admin.*;
 import i.f.industrialfurniture.dto.order.GetOrdersDto;
 import i.f.industrialfurniture.dto.user.CreateProductDto;
+import i.f.industrialfurniture.model.CategoryType;
 import i.f.industrialfurniture.model.PaidStatus;
+import i.f.industrialfurniture.model.ProductType;
 import i.f.industrialfurniture.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,16 +71,6 @@ public class AdminController {
         adminService.deleteOrder(order_id);
         return ResponseEntity.ok("Delete Order");
     }
-    @GetMapping("/get_products")
-    public ResponseEntity<List<GetProductsDto>> getProducts(){
-        List<GetProductsDto> getProductsList = adminService.getProducts();
-        return ResponseEntity.ok(getProductsList);
-    }
-    @PostMapping(value = "/create_product",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> createProduct(@ModelAttribute CreateProductDto createProductDto){
-        adminService.createProduct(createProductDto);
-        return ResponseEntity.ok("Product created");
-    }
     @PostMapping(value = "/import_zip", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ImportReportDto> importProductsFromZip(@RequestParam("file") MultipartFile file) {
         // 1. Проверка: пришел ли файл
@@ -102,10 +94,30 @@ public class AdminController {
 
         return ResponseEntity.ok(importReportDto);
     }
+    @GetMapping("/get_products")
+    public ResponseEntity<List<GetProductsDto>> getProducts(
+            @RequestParam ProductType productType,
+            @RequestParam Boolean active){
+        List<GetProductsDto> getProductsList = adminService.getProducts(productType,active);
+        return ResponseEntity.ok(getProductsList);
+    }
+    @PostMapping(value = "/create_product",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> createProduct(
+            @RequestPart("product") CreateProductDto createProductDto,
+            @RequestPart(value = "photos", required = false) List<MultipartFile> photos
+    ){
+        adminService.createProduct(createProductDto,photos);
+        return ResponseEntity.ok("Product created");
+    }
     @PutMapping(value = "/edit_product",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> editProduct(@ModelAttribute EditProductDto editProduct){
         adminService.editProduct(editProduct);
         return ResponseEntity.ok("Product edited");
+    }
+    @PatchMapping("/edit_product_active/{productId}")
+    public ResponseEntity<String> editProductActive(@PathVariable Integer productId){
+        adminService.editProductActive(productId);
+        return ResponseEntity.ok("Product is Active");
     }
     @DeleteMapping("/delete_product/{product_id}")
     public ResponseEntity<String> deleteProduct(@PathVariable Integer product_id){
@@ -113,8 +125,11 @@ public class AdminController {
         return ResponseEntity.ok("Delete Product");
     }
     @GetMapping("/get_categories")
-    public ResponseEntity<List<GetCategories>> getCategories(){
-        List<GetCategories> categories = adminService.getCategories();
+    public ResponseEntity<List<GetCategories>> getCategories(
+            @RequestParam CategoryType categoryType,
+            @RequestParam Boolean active
+    ){
+        List<GetCategories> categories = adminService.getCategories(categoryType,active);
         return ResponseEntity.ok(categories);
     }
     @PostMapping(value = "/create_category",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -126,6 +141,11 @@ public class AdminController {
     public ResponseEntity<String> editCategory(@ModelAttribute EditCategoryDto editCategory){
         adminService.editCategory(editCategory);
         return ResponseEntity.ok("Edit Category");
+    }
+    @PatchMapping("/edit_category_active/{categoryId}")
+    public ResponseEntity<String> editCategoryActive(@PathVariable Integer categoryId){
+        adminService.editCategoryActive(categoryId);
+        return ResponseEntity.ok("Category is Active");
     }
     @DeleteMapping("/delete_category/{category_id}")
     public ResponseEntity<String> deleteCategory(@PathVariable Integer category_id){

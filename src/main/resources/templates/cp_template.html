@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <style>
+        body { font-family: 'Arial', sans-serif; font-size: 16px; margin: 20px; }
+
+        /* Используем таблицы вместо flex для стабильности в PDF */
+        .layout-table { width: 100%; border: none; border-collapse: collapse; }
+        .layout-table td { border: none; padding: 0; vertical-align: top; }
+
+        .company-info { text-align: right; font-size: 14px; }
+        .title { text-align: center; font-size: 22px; font-weight: unset; margin: 20px 0; }
+
+        /* Таблица товаров */
+        .data-table { font-weight: normal; font-size: 12px; width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .data-table th, .data-table td { font-weight: normal; border: 1px solid #000; padding: 10px; text-align: left; }
+        .data-table th { background-color: #f2f2f2; text-align: center; font-size: 14px; }
+
+        .product-img { width: 80px; height: auto; max-height: 100px; }
+        .total-row { font-weight: normal; background-color: #eee; }
+    </style>
+</head>
+<body>
+<table class="layout-table">
+<tr>
+    <td style="font-size: 28px; font-weight: bold; width: 30%;">RESTArt</td>
+    <td class="company-info">
+        г. Алматы, ул. Толе би, 187 дом, ТЦ «Тумар»<br/>
+        Тел: +7 (777) 718-88-55<br/>
+        www.restart-market.kz<br/>
+        <span th:text="${date}">01.01.2024</span>
+    </td>
+</tr>
+</table>
+
+<div class="title">Коммерческое предложение</div>
+
+<table class="data-table">
+    <thead>
+    <tr>
+        <th>№</th>
+        <th>Фото</th>
+        <th>Наименование</th>
+        <th style="width: 35%;">Характеристики</th>
+        <th>Кол-во</th>
+        <th>Цена (Т)</th>
+        <th>Сумма (Т)</th>
+        <th>Срок</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="item, stat : ${items}">
+        <td th:text="${stat.count}" style="text-align: center;"></td>
+        <td style="text-align: center;">
+            <img th:if="${item.photoBase64 != null}"
+                 th:src="${item.photoBase64}"
+                 class="product-img"/>
+
+            <span th:if="${item.photoBase64 == null}" style="color: #ccc; font-size: 8px;">Нет фото</span>
+        </td>
+        <td>
+            <span th:text="${item.productName}"></span><br/>
+            <small th:text="'Арт: ' + ${item.tag}"></small>
+        </td>
+        <td th:text="${item.characteristics}" style="font-size: 9px;"></td>
+        <td th:text="${item.quantity}" style="text-align: center;"></td>
+        <td th:text="${#numbers.formatDecimal(item.productPrice, 0, 'WHITESPACE', 0, 'POINT')}"></td>
+        <td th:text="${#numbers.formatDecimal(item.productPrice * item.quantity, 0, 'WHITESPACE', 0, 'POINT')}"></td>
+        <td th:text="${item.deliveryTerms}"></td>
+    </tr>
+    <tr class="total-row">
+        <td colspan="6" style="text-align: right;">ИТОГО К ОПЛАТЕ:</td>
+        <td colspan="2" th:text="${#numbers.formatDecimal(totalSum, 0, 'WHITESPACE', 0, 'POINT')} + ' Т'"></td>
+    </tr>
+    </tbody>
+</table>
+
+<table class="layout-table" style="margin-top: 50px;">
+    <tr>
+        <td style="width: 40%;">
+            Поставщик:<br/>
+            <div>Директор RestART</div><br/>
+            <div style="border-bottom: 1px solid #000; width: 150px; margin-top: 7px;"></div>
+        </td>
+        <td style="width: 20%;"></td> <td style="width: 40%; text-align: right;">
+        Исполнитель:<br/>
+        <div>Аралбай Нурбек</div><br/>
+        <div style="border-bottom: 1px solid #000; width: 140px; margin-top: 7px; margin-left: auto;"></div>
+    </td>
+    </tr>
+</table>
+</body>
+</html>

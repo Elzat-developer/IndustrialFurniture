@@ -23,8 +23,6 @@ public class CartItem {
         this.product = product;
         this.quantity = quantity;
     }
-
-    public CartItem() {
-
-    }
+        public CartItem() {
+        }
 }

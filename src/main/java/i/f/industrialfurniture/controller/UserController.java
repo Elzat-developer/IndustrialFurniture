@@ -6,6 +6,8 @@ import i.f.industrialfurniture.dto.order.OrderHistoryUserDto;
 import i.f.industrialfurniture.dto.order.OrderRequestDto;
 import i.f.industrialfurniture.dto.order.OrderResponseDto;
 import i.f.industrialfurniture.dto.user.*;
+import i.f.industrialfurniture.model.CategoryType;
+import i.f.industrialfurniture.model.ProductType;
 import i.f.industrialfurniture.service.AdminService;
 import i.f.industrialfurniture.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +27,8 @@ public class UserController {
     private final UserService userService;
     private final AdminService adminService;
     @GetMapping("/get_categories")
-    public ResponseEntity<List<GetCategoriesUserDto>> getCategories(){
-        List<GetCategoriesUserDto> categoriesUserDtoList = userService.getCategories();
+    public ResponseEntity<List<GetCategoriesUserDto>> getCategories(@RequestParam CategoryType categoryType){
+        List<GetCategoriesUserDto> categoriesUserDtoList = userService.getCategories(categoryType);
         return ResponseEntity.ok(categoriesUserDtoList);
     }
     @GetMapping("/get_tech_spec")
@@ -35,24 +37,27 @@ public class UserController {
         return ResponseEntity.ok(techSpecDtoList);
     }
     @GetMapping("/get_products")
-    public ResponseEntity<List<GetProductsUserDto>> getProductsUserDto(){
-        List<GetProductsUserDto> getProductsUserDtoList = userService.getProductsUserDto();
+    public ResponseEntity<List<GetProductsUserDto>> getProductsUserDto(@RequestParam ProductType productType){
+        List<GetProductsUserDto> getProductsUserDtoList = userService.getProductsUserDto(productType);
         return ResponseEntity.ok(getProductsUserDtoList);
     }
-
-    @GetMapping("/get_product/{product_id}")
-    public ResponseEntity<GetProductDto> getProduct(@PathVariable Integer product_id){
-        GetProductDto getProductDto = adminService.getProduct(product_id);
+    @GetMapping("/get_product/{productId}")
+    public ResponseEntity<GetProductDto> getProduct(@PathVariable Integer productId){
+        GetProductDto getProductDto = adminService.getProduct(productId);
         return ResponseEntity.ok(getProductDto);
     }
     @GetMapping("/get_products_filter")
-    public ResponseEntity<List<GetProductsDto>> getFilteredProducts(
+    public ResponseEntity<List<GetProductsUserDto>> getFilteredProducts(
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) ProductType productType,
             @RequestParam(required = false) Integer categoryId,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) String material
     ) {
-        List<GetProductsDto> products = adminService.findProducts(
+        List<GetProductsUserDto> products = adminService.findProducts(
+                active,
+                productType,
                 categoryId,
                 material,
                 minPrice,
@@ -61,13 +66,20 @@ public class UserController {
 
         return ResponseEntity.ok(products);
     }
-    @PostMapping("/generate_cp_exel")
-    public ResponseEntity<byte[]> downloadExcel(@RequestBody List<CartItemDto> cartItemDtoList){
-        byte[] fileContent = userService.generateExcelPriceList(cartItemDtoList);
+    @PostMapping("/generate_cp_pdf")
+    public ResponseEntity<byte[]> downloadPdf(@RequestBody List<CartItemDto> cartItemDtoList) {
+        // 1. Считаем общую сумму (лучше сделать это здесь или в сервисе перед передачей в PDF)
+        BigDecimal totalSum = cartItemDtoList.stream()
+                .map(item -> item.productPrice().multiply(BigDecimal.valueOf(item.quantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // 2. Вызываем новый метод генерации PDF
+        byte[] fileContent = userService.generateCpPdf(cartItemDtoList, totalSum);
+
+        // 3. Возвращаем PDF ответ
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=cpIF.xlsx")
-                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Commercial_Proposal.pdf")
+                .contentType(MediaType.APPLICATION_PDF) // Указываем, что это PDF
                 .body(fileContent);
     }
     @GetMapping("/get_cart")

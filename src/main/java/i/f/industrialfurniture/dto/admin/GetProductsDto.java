@@ -1,6 +1,7 @@
 package i.f.industrialfurniture.dto.admin;
 
 import i.f.industrialfurniture.dto.user.GetPhotoDto;
+import i.f.industrialfurniture.model.ProductType;
 
 import java.time.LocalDateTime;
 
@@ -12,6 +13,7 @@ public record GetProductsDto(
         LocalDateTime updatedAt,
         String material,
         Integer categoryId,
+        ProductType productType,
         GetPhotoDto photoDto
 ) {
 }

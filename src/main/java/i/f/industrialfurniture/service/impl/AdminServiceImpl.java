@@ -1,14 +1,13 @@
 package i.f.industrialfurniture.service.impl;
 
+import i.f.industrialfurniture.dto.admin.*;
 import i.f.industrialfurniture.dto.order.GetOrdersDto;
 import i.f.industrialfurniture.dto.user.CreateProductDto;
-import i.f.industrialfurniture.dto.admin.*;
 import i.f.industrialfurniture.dto.user.GetPhotoDto;
-import i.f.industrialfurniture.model.ImportStatus;
-import i.f.industrialfurniture.model.PaidStatus;
-import i.f.industrialfurniture.model.entity.*;
+import i.f.industrialfurniture.dto.user.GetProductsUserDto;
 import i.f.industrialfurniture.mapper.ProductMapper;
-import i.f.industrialfurniture.model.ProductSpecifications;
+import i.f.industrialfurniture.model.*;
+import i.f.industrialfurniture.model.entity.*;
 import i.f.industrialfurniture.repositories.*;
 import i.f.industrialfurniture.service.AdminService;
 import jakarta.persistence.EntityNotFoundException;
@@ -29,10 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -65,7 +61,7 @@ public class AdminServiceImpl implements AdminService {
     @Value("${storage.dirs.category}")
     private String categoryDir;
     @Override
-    public void createProduct(CreateProductDto createProductDto) {
+    public void createProduct(CreateProductDto createProductDto,List<MultipartFile> photos) {
             Product product = productMapper.createProductFromDto(createProductDto);
             product.setActive(true);
             product.setCreatedAt(LocalDateTime.now());
@@ -74,19 +70,27 @@ public class AdminServiceImpl implements AdminService {
                     .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
                 product.setCategory(category);
             }
-            setPhotosProduct(createProductDto.photos(),product);
+            if (photos != null && !photos.isEmpty()) {
+                setPhotosProduct(photos, product);
+            }
             productRepo.save(product);
     }
 
     @Override
-    public List<GetProductsDto> getProducts() {
-        List<Product> products = productRepo.findAll();
-        return products.stream()
+    public List<GetProductsDto> getProducts(ProductType productType,Boolean active) {
+        // Формируем запрос "на лету"
+        Specification<Product> spec = Specification.where(
+                ProductSpecifications.hasType(productType))
+                .and(ProductSpecifications.hasActiveStatus(active));
+
+        // Один запрос в базу, который вернет именно то, что нужно для нажатой кнопки
+        return productRepo.findAll(spec).stream()
                 .map(this::toProductsAll)
                 .toList();
     }
 
     @Override
+    @Transactional
     public GetProductDto getProduct(Integer productId) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
@@ -100,7 +104,6 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
 
         productMapper.updateProductFromDto(editProduct,product);
-        product.setActive(true);
         if (editProduct.categoryId() != null) {
             Category category = categoryRepo.findById(editProduct.categoryId())
                     .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
@@ -118,6 +121,12 @@ public class AdminServiceImpl implements AdminService {
 
             // 3. Сохраняем новые сжатые фото
             setPhotosProduct(editProduct.photos(),product);
+        }
+        if (editProduct.specifications() != null){
+            // Очищаем старые характеристики и добавляем новые
+            // Это гарантирует, что Hibernate корректно синхронизирует таблицу product_specifications
+            product.getSpecifications().clear();
+            product.getSpecifications().putAll(editProduct.specifications());
         }
         productRepo.save(product);
     }
@@ -137,14 +146,19 @@ public class AdminServiceImpl implements AdminService {
         Category category = new Category();
         category.setCategoryName(createCategoryDto.categoryName());
         category.setDescription(createCategoryDto.description());
+        category.setCategoryType(createCategoryDto.categoryType());
         setPhotoCategory(createCategoryDto.photoUrl(),category);
         categoryRepo.save(category);
     }
 
     @Override
-    public List<GetCategories> getCategories() {
-        List<Category> categories = categoryRepo.findAll();
-        return categories.stream()
+    public List<GetCategories> getCategories(CategoryType categoryType,Boolean active) {
+        // Формируем запрос "на лету"
+        Specification<Category> spec = Specification.allOf(
+                CategorySpecifications.hasType(categoryType),
+                CategorySpecifications.hasActiveStatus(active)
+        );
+        return categoryRepo.findAll(spec).stream()
                 .map(this::toCategories)
                 .toList();
     }
@@ -159,6 +173,12 @@ public class AdminServiceImpl implements AdminService {
         if (editCategory.description() != null){
             category.setDescription(editCategory.description());
         }
+        if (editCategory.categoryType() != null){
+            category.setCategoryType(editCategory.categoryType());
+        }
+        if (editCategory.active() != null){
+            category.setActive(editCategory.active());
+        }
         if (editCategory.photoUrl() != null && !editCategory.photoUrl().isEmpty()){
             deleteFileFromDisk(category.getPhotoUrl());
             setPhotoCategory(editCategory.photoUrl(),category);
@@ -170,23 +190,45 @@ public class AdminServiceImpl implements AdminService {
     public void deleteCategory(Integer categoryId) {
         Category category = categoryRepo.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
-        if (category.getPhotoUrl() != null) {
-            deleteFileFromDisk(category.getPhotoUrl());
-        }
-        categoryRepo.delete(category);
+        category.setActive(false);
+        categoryRepo.save(category);
     }
 
     @Override
-    public List<GetProductsDto> findProducts(Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice) {
-        Specification<Product> spec = Specification.allOf(
+    public List<GetProductsUserDto> findProducts(Boolean active,ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice) {
+            Specification<Product> spec = Specification.allOf(
+                    ProductSpecifications.hasActiveStatus(active),
+                ProductSpecifications.hasType(productType),
                 ProductSpecifications.hasCategory(categoryId),
                 ProductSpecifications.hasMaterial(material),
                 ProductSpecifications.priceBetween(minPrice, maxPrice)
-        );
+            );
 
         return productRepo.findAll(spec).stream()
-                .map(this::toProductsAll)
+                .map(this::toProductUser)
                 .toList();
+    }
+
+    private GetProductsUserDto toProductUser(Product product) {
+        GetPhotoDto photoDto = null;
+
+        // Проверяем есть ли у продукта фото
+        if (product.getPhotos() != null && !product.getPhotos().isEmpty()) {
+            ProductImage firstPhoto = product.getPhotos().get(0);
+            photoDto = new GetPhotoDto(
+                    firstPhoto.getId() == null ? null : firstPhoto.getId(),
+                    firstPhoto.getUrl()
+            );
+        }
+        return new GetProductsUserDto(
+                product.getId(),
+                product.getProductName(),
+                product.getPrice(),
+                product.getMaterial(),
+                product.getCategory().getId(),
+                product.getProductType(),
+                photoDto
+        );
     }
 
     @Override
@@ -473,6 +515,22 @@ public class AdminServiceImpl implements AdminService {
         return new ImportReportDto(successCount, errors.size(), errors);
     }
 
+    @Override
+    public void editProductActive(Integer productId) {
+        Product product = productRepo.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
+        product.setActive(true);
+        productRepo.save(product);
+    }
+
+    @Override
+    public void editCategoryActive(Integer categoryId) {
+        Category category = categoryRepo.findById(categoryId)
+                .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
+        category.setActive(true);
+        categoryRepo.save(category);
+    }
+
     private void saveImportHistory(String fileName, int success, List<String> errors) {
         ImportHistory history = new ImportHistory();
         history.setFileName(fileName);
@@ -728,25 +786,30 @@ public class AdminServiceImpl implements AdminService {
                 category.getId() == null ? null : category.getId(),
                 category.getCategoryName(),
                 category.getDescription(),
-                category.getPhotoUrl()
+                category.getPhotoUrl(),
+                category.getCategoryType()
         );
     }
 
     private GetProductDto toProduct(Product product) {
-        Integer categoryId = null;
-        if (product.getCategory() != null && product.getCategory().getId() != null){
-            categoryId = product.getCategory().getId();
-        }
+        // Используем Optional для более лаконичного извлечения ID категории
+        Integer categoryId = Optional.ofNullable(product.getCategory())
+                .map(Category::getId)
+                .orElse(null);
 
-        List<GetPhotoDto> photos = new ArrayList<>();
-        if (product.getPhotos() != null) {
-            photos = product.getPhotos().stream()
-                    .map(this::toProductPhoto)
-                    .toList();
-        }
+        List<GetPhotoDto> photos = Optional.ofNullable(product.getPhotos())
+                .orElse(Collections.emptyList())
+                .stream()
+                .map(this::toProductPhoto)
+                .toList();
+
+        // Защита от изменений оригинальной карты
+        Map<String, String> specs = product.getSpecifications() != null
+                ? new HashMap<>(product.getSpecifications())
+                : Collections.emptyMap();
 
         return new GetProductDto(
-                product.getId() == null ? null : product.getId(),
+                product.getId(), // Если id в базе Integer, проверка на null тут избыточна, JPA вернет либо id, либо упадет раньше
                 product.getProductName(),
                 product.getDescription(),
                 product.getTag(),
@@ -754,10 +817,18 @@ public class AdminServiceImpl implements AdminService {
                 product.getMaterial(),
                 product.getDimensions(),
                 product.getWeight(),
+                product.getWidth(),
+                product.getDepth(),
+                product.getHeight(),
+                product.getPower(),
+                product.getVoltage(),
+                product.getCountry(),
+                specs,
                 product.getCreatedAt(),
                 product.getUpdatedAt(),
                 categoryId,
                 product.getQuantity(),
+                product.getProductType(),
                 photos
         );
     }
@@ -790,6 +861,7 @@ public class AdminServiceImpl implements AdminService {
                 product.getMaterial(),
                 product.getCategory() != null && product.getCategory().getId() != null
                         ? product.getCategory().getId() : null,
+                product.getProductType(),
                 photoDto
         );
     }

@@ -5,13 +5,15 @@ import i.f.industrialfurniture.dto.order.OrderHistoryUserDto;
 import i.f.industrialfurniture.dto.order.OrderRequestDto;
 import i.f.industrialfurniture.dto.order.OrderResponseDto;
 import i.f.industrialfurniture.dto.user.*;
+import i.f.industrialfurniture.model.CategoryType;
+import i.f.industrialfurniture.model.ProductType;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
+import java.math.BigDecimal;
 import java.nio.file.AccessDeniedException;
 import java.util.List;
 
 public interface UserService {
-    byte[] generateExcelPriceList(List<CartItemDto> cartItemDtoList);
 
     UserDetailsService userDetailsService();
 
@@ -41,7 +43,9 @@ public interface UserService {
 
     NewsIdDto getNewsId(Integer newsId);
 
-    List<GetCategoriesUserDto> getCategories();
+    List<GetCategoriesUserDto> getCategories(CategoryType categoryType);
 
-    List<GetProductsUserDto> getProductsUserDto();
+    List<GetProductsUserDto> getProductsUserDto(ProductType productType);
+
+    byte[] generateCpPdf(List<CartItemDto> cartItemDtoList, BigDecimal totalSum);
 }
