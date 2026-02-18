@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 @Slf4j
 @RestController
@@ -21,6 +22,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminController {
     private final AdminService adminService;
+    @GetMapping("/get_tech_spec")
+    public ResponseEntity<List<GetTechSpecDto>> getTechSpecs(){
+        List<GetTechSpecDto> techSpecDtoList = adminService.getTechSpecs();
+        return ResponseEntity.ok(techSpecDtoList);
+    }
     @PutMapping(value = "/edit_company",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> editCompany(@ModelAttribute CreateCompanyDto editCompany){
         adminService.editCompany(editCompany);
@@ -101,6 +107,26 @@ public class AdminController {
         List<GetProductsDto> getProductsList = adminService.getProducts(productType,active);
         return ResponseEntity.ok(getProductsList);
     }
+    @GetMapping("/get_products_filter_admin")
+    public ResponseEntity<List<GetProductsDto>> getFilteredProductsAdmin(
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) ProductType productType,
+            @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String material
+    ) {
+        List<GetProductsDto> products = adminService.findProductsAdmin(
+                active,
+                productType,
+                categoryId,
+                material,
+                minPrice,
+                maxPrice
+        );
+
+        return ResponseEntity.ok(products);
+    }
     @PostMapping(value = "/create_product",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> createProduct(
             @RequestPart("product") CreateProductDto createProductDto,
@@ -110,8 +136,11 @@ public class AdminController {
         return ResponseEntity.ok("Product created");
     }
     @PutMapping(value = "/edit_product",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> editProduct(@ModelAttribute EditProductDto editProduct){
-        adminService.editProduct(editProduct);
+    public ResponseEntity<String> editProduct(
+            @RequestPart("product") EditProductDto editProduct,
+            @RequestPart(value = "photos", required = false) List<MultipartFile> photos
+    ){
+        adminService.editProduct(editProduct,photos);
         return ResponseEntity.ok("Product edited");
     }
     @PatchMapping("/edit_product_active/{productId}")

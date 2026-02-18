@@ -16,7 +16,7 @@ public interface AdminService {
     void createProduct(CreateProductDto createProductDto,List<MultipartFile> photos);
     List<GetProductsDto> getProducts(ProductType productType,Boolean active);
     GetProductDto getProduct(Integer productId);
-    void editProduct(EditProductDto editProduct);
+    void editProduct(EditProductDto editProduct,List<MultipartFile> photos);
     void deleteProduct(Integer productId);
     void createCategory(CreateCategoryDto createCategoryDto);
     List<GetCategories> getCategories(CategoryType categoryType,Boolean active);
@@ -42,4 +42,6 @@ public interface AdminService {
     void editProductActive(Integer productId);
 
     void editCategoryActive(Integer categoryId);
+
+    List<GetProductsDto> findProductsAdmin(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice);
 }

@@ -244,6 +244,8 @@ public class UserServiceImpl implements UserService {
                     order.getTotalPrice(),
                     order.getPaidStatus(), // "PENDING", "COMPLETED" и т.д.
                     order.getOrderStartDate(),
+                    order.getCustomerName(),
+                    order.getCustomerPhone(),
                     generateWhatsAppLink(order, order.getItems()) // Ссылка, если он захочет написать снова
             );
         }).toList();
@@ -289,6 +291,8 @@ public class UserServiceImpl implements UserService {
                 order.getTotalPrice(),
                 order.getPaidStatus(),
                 order.getOrderStartDate(),
+                order.getCustomerName(),
+                order.getCustomerPhone(),
                 "https://wa.me/77472164664?text=Хочу сделать повторный заказ №" + order.getOrderNumber(),
                 items
         );

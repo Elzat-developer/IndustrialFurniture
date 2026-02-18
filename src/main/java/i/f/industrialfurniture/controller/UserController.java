@@ -31,11 +31,6 @@ public class UserController {
         List<GetCategoriesUserDto> categoriesUserDtoList = userService.getCategories(categoryType);
         return ResponseEntity.ok(categoriesUserDtoList);
     }
-    @GetMapping("/get_tech_spec")
-    public ResponseEntity<List<GetTechSpecDto>> getTechSpecs(){
-        List<GetTechSpecDto> techSpecDtoList = adminService.getTechSpecs();
-        return ResponseEntity.ok(techSpecDtoList);
-    }
     @GetMapping("/get_products")
     public ResponseEntity<List<GetProductsUserDto>> getProductsUserDto(@RequestParam ProductType productType){
         List<GetProductsUserDto> getProductsUserDtoList = userService.getProductsUserDto(productType);

@@ -99,7 +99,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public void editProduct(EditProductDto editProduct) {
+    public void editProduct(EditProductDto editProduct,List<MultipartFile> photos) {
         Product product = productRepo.findById(editProduct.productId())
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
 
@@ -112,7 +112,7 @@ public class AdminServiceImpl implements AdminService {
 
         product.setUpdatedAt(LocalDateTime.now());
 
-        if (editProduct.photos() != null && !editProduct.photos().isEmpty()){
+        if (photos != null && !photos.isEmpty()){
             // 1. Сначала удаляем старые файлы с диска
             product.getPhotos().forEach(photo -> deleteFileFromDisk(photo.getUrl()));
 
@@ -120,7 +120,7 @@ public class AdminServiceImpl implements AdminService {
             product.getPhotos().clear();
 
             // 3. Сохраняем новые сжатые фото
-            setPhotosProduct(editProduct.photos(),product);
+            setPhotosProduct(photos,product);
         }
         if (editProduct.specifications() != null){
             // Очищаем старые характеристики и добавляем новые
@@ -529,6 +529,21 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
         category.setActive(true);
         categoryRepo.save(category);
+    }
+
+    @Override
+    public List<GetProductsDto> findProductsAdmin(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice) {
+        Specification<Product> spec = Specification.allOf(
+                ProductSpecifications.hasActiveStatus(active),
+                ProductSpecifications.hasType(productType),
+                ProductSpecifications.hasCategory(categoryId),
+                ProductSpecifications.hasMaterial(material),
+                ProductSpecifications.priceBetween(minPrice, maxPrice)
+        );
+
+        return productRepo.findAll(spec).stream()
+                .map(this::toProductsAll)
+                .toList();
     }
 
     private void saveImportHistory(String fileName, int success, List<String> errors) {

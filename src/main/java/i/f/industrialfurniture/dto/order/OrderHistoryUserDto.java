@@ -11,6 +11,8 @@ public record OrderHistoryUserDto(
         BigDecimal totalPrice,
         PaidStatus paidStatus,
         LocalDateTime createOrder,
+        String customerName,
+        String customerPhone,
         String whatsappLink
 ) {
 }

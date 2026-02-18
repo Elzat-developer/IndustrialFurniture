@@ -13,6 +13,8 @@ public record OrderDetailsDto(
         BigDecimal totalPrice,
         PaidStatus paidStatus,
         LocalDateTime createOrder,
+        String customerName,
+        String customerPhone,
         String whatsappLink,
         List<OrderItemDto> itemDto
 ) {

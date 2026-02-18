@@ -1,11 +1,9 @@
 package i.f.industrialfurniture.dto.admin;
 
 import i.f.industrialfurniture.model.ProductType;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 public record EditProductDto(
@@ -29,7 +27,6 @@ public record EditProductDto(
         Integer categoryId,
         Integer quantity,
         ProductType productType,
-        Boolean active,
-        List<MultipartFile> photos
+        Boolean active
 ) {
 }
