@@ -44,4 +44,10 @@ public interface AdminService {
     void editCategoryActive(Integer categoryId);
 
     List<GetProductsDto> findProductsAdmin(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice);
+
+    List<ImportHistoriesDto> getImportHistories();
+
+    ImportHistoryDto getImportHistory(Integer historyId);
+
+    void deleteImportHistory(Integer historyId);
 }

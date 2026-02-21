@@ -10,9 +10,13 @@ import i.f.industrialfurniture.model.*;
 import i.f.industrialfurniture.model.entity.*;
 import i.f.industrialfurniture.repositories.*;
 import i.f.industrialfurniture.service.AdminService;
+import i.f.industrialfurniture.service.ImportHistoryService;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,12 +28,16 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Service
 @Slf4j
@@ -46,6 +54,7 @@ public class AdminServiceImpl implements AdminService {
     private final NewsRepo newsRepo;
     private final CompanyRepo companyRepo;
     private final TechnicalSpecificationRepo technicalSpecificationRepo;
+    private final ImportHistoryService importHistoryService;
     @Value("${storage.base-path}")
     private String basePath;
     @Value("${storage.dirs.product}")
@@ -60,6 +69,8 @@ public class AdminServiceImpl implements AdminService {
     private String logoDir;
     @Value("${storage.dirs.category}")
     private String categoryDir;
+    @PersistenceContext
+    private EntityManager entityManager;
     @Override
     public void createProduct(CreateProductDto createProductDto,List<MultipartFile> photos) {
             Product product = productMapper.createProductFromDto(createProductDto);
@@ -422,99 +433,262 @@ public class AdminServiceImpl implements AdminService {
     public ImportReportDto importProductsFromZip(MultipartFile file) {
         List<String> errors = new ArrayList<>();
         int successCount = 0;
-
-        // 1. Создаем временную папку для распаковки
+        int batchSize = 30; // Должно совпадать с настройкой в properties
         Path tempDir = Paths.get(basePath, "temp_import_" + UUID.randomUUID());
 
         try {
             Files.createDirectories(tempDir);
-
-            // 2. Распаковываем архив
             unzip(file, tempDir);
 
-            // 3. Ищем Excel файл в корне архива
             Path excelPath = Files.walk(tempDir)
                     .filter(p -> p.toString().endsWith(".xlsx"))
                     .findFirst()
-                    .orElseThrow(() -> new RuntimeException("Excel файл (.xlsx) не найден в архиве!"));
+                    .orElseThrow(() -> new RuntimeException("Excel файл не найден"));
 
             try (InputStream is = Files.newInputStream(excelPath);
                  Workbook workbook = new XSSFWorkbook(is)) {
 
                 Sheet sheet = workbook.getSheetAt(0);
+                Row headerRow = sheet.getRow(0); // Читаем шапку
+
                 Map<Integer, Category> categoryCache = categoryRepo.findAll()
                         .stream().collect(Collectors.toMap(Category::getId, c -> c));
 
+                // Проходим по строкам (данные начинаются с i=1)
                 for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                     Row row = sheet.getRow(i);
                     if (row == null || isRowEmpty(row)) continue;
 
                     try {
-                        validateRow(row, categoryCache);
-
-                        Product product = new Product();
-                        product.setProductName(getCellValueAsString(row.getCell(0)));
-                        product.setTag(getCellValueAsString(row.getCell(1)));
-                        product.setPrice(BigDecimal.valueOf(row.getCell(2).getNumericCellValue()));
-                        product.setMaterial(getCellValueAsString(row.getCell(3)));
-                        product.setDimensions(getCellValueAsString(row.getCell(4)));
-                        product.setWeight(row.getCell(5).getNumericCellValue());
-                        product.setQuantity((int) row.getCell(6).getNumericCellValue());
-
-                        Integer catId = (int) row.getCell(7).getNumericCellValue();
-                        product.setCategory(categoryCache.get(catId));
-                        product.setActive(true);
-                        product.setCreatedAt(LocalDateTime.now());
-
-                        // --- ЛОГИКА ФОТО (Колонка №8) ---
-                        String photosString = getCellValueAsString(row.getCell(8));
-                        if (!photosString.isBlank()) {
-                            String[] photoNames = photosString.split(",");
-                            for (String photoName : photoNames) {
-                                photoName = photoName.trim();
-                                // Ищем файл в папке images/ внутри архива
-                                Path sourcePhotoPath = tempDir.resolve("images").resolve(photoName);
-
-                                if (Files.exists(sourcePhotoPath)) {
-                                    String savedPath = compressionPhotoFromPath(sourcePhotoPath, Paths.get(basePath, productDir));
-
-                                    ProductImage pi = new ProductImage();
-                                    pi.setUrl(savedPath);
-                                    pi.setProduct(product);
-                                    product.getPhotos().add(pi);
-                                } else {
-                                    errors.add("Строка " + (i + 1) + ": Файл " + photoName + " не найден в папке images/");
-                                }
-                            }
-                        }
-
-                        productRepo.save(product);
+                        Product product = processRowToProduct(row, headerRow, categoryCache, tempDir, errors, i);
+                        // Вместо productRepo.save() используем persist
+                        entityManager.persist(product);
                         successCount++;
+
+                        // Сбрасываем пакет в БД каждые batchSize записей
+                        if (successCount % batchSize == 0) {
+                            entityManager.flush();
+                            entityManager.clear();
+                            // clear() очищает кэш L1, освобождая те самые 2ГБ ОЗУ
+                        }
 
                     } catch (Exception e) {
                         errors.add("Строка " + (i + 1) + ": " + e.getMessage());
                     }
                 }
             }
-
-            // Записываем историю (как делали раньше)
-            saveImportHistory(file.getOriginalFilename(), successCount, errors);
-
+            // Финальный сброс остатков
+            entityManager.flush();
+            entityManager.clear();
+            // 2. Если всё прошло успешно (или с ошибками в строках), сохраняем финальный отчет
+            importHistoryService.saveImportHistory(file.getOriginalFilename(), successCount, errors);
         } catch (Exception e) {
-            log.error("❌ Ошибка импорта из ZIP: ", e);
+            log.error("❌ Ошибка импорта: ", e);
+            // Даже если случилась катастрофа, пытаемся сохранить то, что успели насчитать
+            importHistoryService.saveImportHistory(file.getOriginalFilename(), successCount,
+                    List.of("Критическая ошибка: " + e.getMessage()));
             throw new RuntimeException("Ошибка импорта: " + e.getMessage());
         } finally {
-            // 4. Чистим за собой временные файлы (ОБЯЗАТЕЛЬНО для 2ГБ ОЗУ)
-            try {
-                org.apache.commons.io.FileUtils.deleteDirectory(tempDir.toFile());
-            } catch (IOException e) {
-                log.error("Не удалось удалить временную папку: {}", tempDir);
-            }
+            FileUtils.deleteQuietly(tempDir.toFile());
         }
+
 
         return new ImportReportDto(successCount, errors.size(), errors);
     }
+    private Product processRowToProduct(Row row, Row headerRow, Map<Integer, Category> categoryCache,
+                                        Path tempDir, List<String> errors, int i) {
+        Product product = new Product();
 
+        // 1. Базовые поля (индексы 0-7)
+        product.setProductName(getSafeString(row, 0));
+        product.setTag(getSafeString(row, 1));
+        product.setPrice(getSafeBigDecimal(row, 2));
+        product.setMaterial(getSafeString(row, 3));
+        product.setDimensions(getSafeString(row, 4));
+        product.setWeight(getSafeDouble(row, 5));
+        product.setQuantity(getSafeInt(row, 6));
+
+        // Категория
+        Integer catId = getSafeInt(row, 7);
+        if (catId != null && categoryCache.containsKey(catId)) {
+            product.setCategory(categoryCache.get(catId));
+        } else {
+            throw new RuntimeException("Категория с ID " + catId + " не найдена");
+        }
+
+        // 2. Новые фиксированные поля (индексы 9-15)
+        product.setDescription(getSafeString(row, 9));
+        product.setWidth(getSafeInt(row, 10));
+        product.setDepth(getSafeInt(row, 11));
+        product.setHeight(getSafeInt(row, 12));
+        product.setPower(getSafeString(row, 13));
+        product.setVoltage(getSafeString(row, 14));
+        product.setCountry(getSafeString(row, 15));
+
+        // 3. Обработка Enum ProductType (индекс 16)
+        String typeStr = getSafeString(row, 16).trim().toLowerCase();
+        if (typeStr.equals("industrial") || typeStr.equals("промышленный")) {
+            product.setProductType(ProductType.industrial);
+        } else if (typeStr.equals("household") || typeStr.equals("бытовой")) {
+            product.setProductType(ProductType.household);
+        } else {
+            product.setProductType(ProductType.industrial); // Значение по умолчанию
+        }
+
+        // 4. Динамические характеристики (начиная с 17 колонки)
+        // Мы идем до конца строки в заголовке
+        for (int cellIdx = 17; cellIdx < headerRow.getLastCellNum(); cellIdx++) {
+            String headerName = getSafeString(headerRow, cellIdx);
+            String cellValue = getSafeString(row, cellIdx);
+
+            if (headerName.startsWith("Спец:") && !cellValue.isBlank()) {
+                // Убираем "Спец:" и лишние пробелы из ключа
+                String specKey = headerName.substring(5).trim();
+                product.getSpecifications().put(specKey, cellValue);
+            }
+        }
+
+        // 5. Обработка фото (твой метод, индекс 8)
+        processPhotos(row, 8, tempDir, product, errors, i);
+
+        // Служебные поля
+        product.setActive(true);
+        product.setCreatedAt(LocalDateTime.now());
+
+        return product;
+    }
+    // Вынес логику фото в отдельный метод для чистоты
+    private void processPhotos(Row row, int cellIdx, Path tempDir, Product product, List<String> errors, int rowNum) {
+        String photosString = getSafeString(row, cellIdx);
+        if (!photosString.isBlank()) {
+            String[] photoNames = photosString.split(",");
+            for (String photoName : photoNames) {
+                Path sourcePhotoPath = tempDir.resolve("images").resolve(photoName.trim());
+                if (Files.exists(sourcePhotoPath)) {
+                    try {
+                        String savedPath = processImageFile(sourcePhotoPath, Paths.get(basePath, productDir));
+                        ProductImage pi = new ProductImage();
+                        pi.setUrl(savedPath);
+                        pi.setProduct(product);
+                        product.getPhotos().add(pi);
+                    } catch (IOException e) {
+                        errors.add("Строка " + (rowNum + 1) + ": Ошибка сжатия " + photoName);
+                    }
+                } else {
+                    errors.add("Строка " + (rowNum + 1) + ": Файл " + photoName + " не найден");
+                }
+            }
+        }
+    }
+    private String processImageFile(Path sourcePath, Path uploadDir) throws IOException {
+        String originalFilename = sourcePath.getFileName().toString();
+        String baseName = UUID.randomUUID().toString();
+
+        // 1. Извлекаем расширение
+        String extension = "jpg";
+        if (originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+        }
+
+        String fileName = baseName + "." + extension;
+        Path filePath = uploadDir.resolve(fileName);
+
+        try {
+            Files.createDirectories(uploadDir);
+        } catch (IOException e) {
+            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
+            throw new RuntimeException("Не удалось создать папку загрузки", e);
+        }
+        try {
+            if (extension.equals("jpg") || extension.equals("jpeg") || extension.equals("png")) {
+                log.info("📸 Обработка изображения: {} (формат: {})", originalFilename, extension);
+                // 3. Для PNG, JPG и прочих используем сжатие
+                net.coobird.thumbnailator.Thumbnails.of(sourcePath.toFile())
+                        .size(1600, 1600)
+                        .outputQuality(0.8)
+                        .outputFormat(extension) // Сохраняем оригинальный формат (png -> png, jpg -> jpg)
+                        .toFile(filePath.toFile());
+                // Возвращаем путь для сохранения в БД (относительный)
+                return filePath.toString();
+                // 2. Специальная обработка для WebP (если Thumbnailator его не съест)
+            } else if (extension.equals("webp")) {
+                    log.info("📄 WebP обнаружен, сохраняем как есть (без пережатия Thumbnailator)");
+                    Files.copy(sourcePath, filePath, StandardCopyOption.REPLACE_EXISTING);
+                    return filePath.toString();
+            } else {
+                // Если не картинка
+                log.info("📄 Сохраняем файл без изменений: {}", originalFilename);
+                fileName = baseName + "_" + originalFilename;
+                filePath = uploadDir.resolve(fileName);
+                Files.copy(sourcePath, filePath, StandardCopyOption.REPLACE_EXISTING);
+                return filePath.toString();
+            }
+        } catch (Exception e) {
+        log.error("❌ Ошибка при обработке фото {}: {}", originalFilename, e.getMessage());
+        throw new IOException("Не удалось обработать файл изображения", e);
+    }
+}
+    private String getSafeString(Row row, int cellIdx) {
+        Cell cell = row.getCell(cellIdx);
+        if (cell == null || cell.getCellType() == CellType.BLANK) {
+            return "";
+        }
+
+        switch (cell.getCellType()) {
+            case STRING -> {
+                return cell.getStringCellValue().trim();
+            }
+            case NUMERIC -> {
+                // Проверяем, не дата ли это (на всякий случай)
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue().toString();
+                }
+                // Убираем лишние ".0" у целых чисел
+                double numericValue = cell.getNumericCellValue();
+                if (numericValue == (long) numericValue) {
+                    return String.valueOf((long) numericValue);
+                }
+                return String.valueOf(numericValue);
+            }
+            case BOOLEAN -> {
+                return String.valueOf(cell.getBooleanCellValue());
+            }
+            case FORMULA -> {
+                // Пытаемся получить строковое значение формулы, если не выйдет - берем результат
+                try {
+                    return cell.getStringCellValue();
+                } catch (Exception e) {
+                    return String.valueOf(cell.getNumericCellValue());
+                }
+            }
+            default -> {
+                return "";
+            }
+        }
+    }
+
+    private Integer getSafeInt(Row row, int cellIdx) {
+        Cell cell = row.getCell(cellIdx);
+        if (cell == null || cell.getCellType() != CellType.NUMERIC) {
+            return null;
+        }
+        return (int) cell.getNumericCellValue();
+    }
+
+    private BigDecimal getSafeBigDecimal(Row row, int cellIdx) {
+        Cell cell = row.getCell(cellIdx);
+        if (cell == null) return BigDecimal.ZERO;
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return BigDecimal.valueOf(cell.getNumericCellValue());
+        } else if (cell.getCellType() == CellType.STRING) {
+            try {
+                return new BigDecimal(cell.getStringCellValue().replace(",", "."));
+            } catch (Exception e) {
+                return BigDecimal.ZERO;
+            }
+        }
+        return BigDecimal.ZERO;
+    }
     @Override
     public void editProductActive(Integer productId) {
         Product product = productRepo.findById(productId)
@@ -546,37 +720,53 @@ public class AdminServiceImpl implements AdminService {
                 .toList();
     }
 
-    private void saveImportHistory(String fileName, int success, List<String> errors) {
-        ImportHistory history = new ImportHistory();
-        history.setFileName(fileName);
-        history.setSuccessCount(success);
-        history.setErrorCount(errors.size());
-        history.setImportStatus(errors.isEmpty() ? ImportStatus.SUCCESS : (success > 0 ? ImportStatus.PARTIAL : ImportStatus.FAILED));
-        history.setErrorsLog(String.join("\n", errors));
-        history.setCreatedAt(LocalDateTime.now());
-        importHistoryRepo.save(history);
+    @Override
+    public List<ImportHistoriesDto> getImportHistories() {
+        List<ImportHistory> importHistories = importHistoryRepo.findAll();
+        return importHistories.stream()
+                .map(this::toImportHistory)
+                .toList();
     }
 
-    private String compressionPhotoFromPath(Path sourcePath, Path uploadDir) throws IOException {
-        Files.createDirectories(uploadDir);
-        String fileName = UUID.randomUUID() + "_" + sourcePath.getFileName().toString();
-        Path targetPath = uploadDir.resolve(fileName);
+    private ImportHistoriesDto toImportHistory(ImportHistory importHistory) {
+        return new ImportHistoriesDto(
+                importHistory.getId(),
+                importHistory.getFileName(),
+                importHistory.getImportStatus(),
+                importHistory.getCreatedAt()
+        );
+    }
 
-        log.info("📸 Сжимаем фото из архива: {}", sourcePath.getFileName());
+    @Override
+    public ImportHistoryDto getImportHistory(Integer historyId) {
+        ImportHistory importHistory = importHistoryRepo.findById(historyId)
+                .orElseThrow(() -> new IllegalArgumentException("ImportHistory Not Found"));
+        return new ImportHistoryDto(
+                importHistory.getId(),
+                importHistory.getFileName(),
+                importHistory.getSuccessCount(),
+                importHistory.getErrorCount(),
+                importHistory.getImportStatus(),
+                importHistory.getErrorsLog(),
+                importHistory.getCreatedAt()
+        );
+    }
 
-        net.coobird.thumbnailator.Thumbnails.of(sourcePath.toFile())
-                .size(1600, 1600)
-                .outputQuality(0.8)
-                .toFile(targetPath.toFile());
-
-        return targetPath.toString();
+    @Override
+    public void deleteImportHistory(Integer historyId) {
+        importHistoryRepo.deleteById(historyId);
     }
 
     private void unzip(MultipartFile zipFile, Path targetDir) throws IOException {
-        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(zipFile.getInputStream())) {
-            java.util.zip.ZipEntry entry;
+        // Добавляем Charset.forName("CP866") — это решит проблему с "malformed input"
+        try (ZipInputStream zis = new ZipInputStream(zipFile.getInputStream(), Charset.forName("CP866"))) {
+            ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
-                Path newPath = targetDir.resolve(entry.getName());
+                Path newPath = targetDir.resolve(entry.getName()).normalize();
+                // Защита от Zip Slip vulnerability
+                if (!newPath.startsWith(targetDir)) {
+                    throw new IOException("Entry is outside of the target dir: " + entry.getName());
+                }
                 if (entry.isDirectory()) {
                     Files.createDirectories(newPath);
                 } else {
@@ -586,6 +776,32 @@ public class AdminServiceImpl implements AdminService {
                 zis.closeEntry();
             }
         }
+    }
+    private Double getSafeDouble(Row row, int cellIdx) {
+        Cell cell = row.getCell(cellIdx);
+        if (cell == null || cell.getCellType() == CellType.BLANK) {
+            return 0.0;
+        }
+
+        // Если это число, просто возвращаем его
+        if (cell.getCellType() == CellType.NUMERIC) {
+            // Проверка на дату (тот самый случай "25.янв")
+            if (DateUtil.isCellDateFormatted(cell)) {
+                log.warn("В колонке {} (вес) обнаружена дата вместо числа. Проверьте формат в Excel!", cellIdx);
+            }
+            return cell.getNumericCellValue();
+        }
+
+        // Если вдруг в ячейке текст (например, "7.5"), пытаемся спарсить
+        if (cell.getCellType() == CellType.STRING) {
+            try {
+                return Double.parseDouble(cell.getStringCellValue().replace(",", "."));
+            } catch (Exception e) {
+                return 0.0;
+            }
+        }
+
+        return 0.0;
     }
     private void setLogoCompany(MultipartFile logoUrl, Company company) {
         Path uploadDir = Paths.get(basePath, logoDir);
@@ -717,33 +933,6 @@ public class AdminServiceImpl implements AdminService {
         );
     }
 
-// --- Вспомогательные методы ---
-
-    private void validateRow(Row row, Map<Integer, Category> cache) {
-        if (row.getCell(0) == null || getCellValueAsString(row.getCell(0)).isBlank()) {
-            throw new IllegalArgumentException("Название товара пустое");
-        }
-        if (row.getCell(2) == null || row.getCell(2).getCellType() != CellType.NUMERIC) {
-            throw new IllegalArgumentException("Цена должна быть числом");
-        }
-        if (row.getCell(7) == null || row.getCell(7).getCellType() != CellType.NUMERIC) {
-            throw new IllegalArgumentException("ID категории должен быть числом");
-        }
-        int catId = (int) row.getCell(7).getNumericCellValue();
-        if (!cache.containsKey(catId)) {
-            throw new IllegalArgumentException("Категория с ID " + catId + " не найдена в базе");
-        }
-    }
-
-    private String getCellValueAsString(Cell cell) {
-        if (cell == null) return "";
-        return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue();
-            case NUMERIC -> String.valueOf((int) cell.getNumericCellValue());
-            default -> "";
-        };
-    }
-
     private boolean isRowEmpty(Row row) {
         Cell firstCell = row.getCell(0);
         return firstCell == null || firstCell.getCellType() == CellType.BLANK;
@@ -763,35 +952,49 @@ public class AdminServiceImpl implements AdminService {
 
     private String processMultipartFile(MultipartFile multipartFile, Path uploadDir) {
         String originalFilename = multipartFile.getOriginalFilename();
-        // 1. Генерируем базовое имя без расширения
         String baseName = UUID.randomUUID().toString();
-        String contentType = multipartFile.getContentType();
+        String contentType = multipartFile.getContentType();//
+
+        // 1. Извлекаем расширение (например, "png", "jpg", "webp")
+        String extension = "jpg"; // значение по умолчанию
+        if (originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+        }
 
         try {
             if (contentType.startsWith("image/")) {
-                log.info("📸 Сжимаем изображение: {}", originalFilename);
+                log.info("📸 Обработка изображения: {} (формат: {})", originalFilename, extension);
 
-                // 2. Всегда сохраняем как .jpg для максимальной совместимости
-                String fileName = baseName + ".jpg";
+                String fileName = baseName + "." + extension;
                 Path filePath = uploadDir.resolve(fileName);
+                Files.createDirectories(uploadDir);
 
-                net.coobird.thumbnailator.Thumbnails.of(multipartFile.getInputStream())
-                        .size(1600, 1600)
-                        .outputQuality(0.8)
-                        .outputFormat("jpg") // !!! Явно указываем формат для записи
-                        .toFile(filePath.toFile());
+                // 2. Специальная обработка для WebP (если Thumbnailator его не съест)
+                if (extension.equals("webp")) {
+                    log.info("📄 WebP обнаружен, сохраняем как есть (без пережатия Thumbnailator)");
+                    multipartFile.transferTo(filePath);
+                } else {
+                    // 3. Для PNG, JPG и прочих используем сжатие
+                    net.coobird.thumbnailator.Thumbnails.of(multipartFile.getInputStream())
+                            .size(1600, 1600)
+                            .outputQuality(0.8)
+                            .outputFormat(extension) // Сохраняем оригинальный формат (png -> png, jpg -> jpg)
+                            .toFile(filePath.toFile());
+                }
 
-                return filePath.toString();
+                // Возвращаем путь для сохранения в БД (относительный)
+                return "/uploads/products/" + fileName;
             } else {
-                // Если это не картинка (например, PDF), сохраняем с оригинальным расширением
+                // Если не картинка
                 String fileName = baseName + "_" + originalFilename;
                 Path filePath = uploadDir.resolve(fileName);
-                log.info("📄 Сохраняем файл без сжатия: {}", originalFilename);
+                log.info("📄 Сохраняем файл без изменений: {}", originalFilename);
+                Files.createDirectories(uploadDir);
                 multipartFile.transferTo(filePath);
-                return filePath.toString();
+                return "/uploads/products/" + fileName;
             }
         } catch (IOException e) {
-            log.error("❌ Ошибка при сохранении или сжатии '{}': {}", originalFilename, e.getMessage(), e);
+            log.error("❌ Ошибка при сохранении '{}': {}", originalFilename, e.getMessage());
             throw new RuntimeException("Ошибка при обработке файла", e);
         }
     }

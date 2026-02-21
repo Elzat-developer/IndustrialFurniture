@@ -100,6 +100,21 @@ public class AdminController {
 
         return ResponseEntity.ok(importReportDto);
     }
+    @GetMapping("/import_histories")
+    public ResponseEntity<List<ImportHistoriesDto>> getImportHistories(){
+        List<ImportHistoriesDto> importHistoryDtoList = adminService.getImportHistories();
+        return ResponseEntity.ok(importHistoryDtoList);
+    }
+    @GetMapping("/get_import_history/{historyId}")
+    public ResponseEntity<ImportHistoryDto> getImportHistory(@PathVariable Integer historyId){
+        ImportHistoryDto importHistoryDto = adminService.getImportHistory(historyId);
+        return ResponseEntity.ok(importHistoryDto);
+    }
+    @DeleteMapping("/delete_import_history/{historyId}")
+    public ResponseEntity<String> deleteImportHistory(@PathVariable Integer historyId){
+        adminService.deleteImportHistory(historyId);
+        return ResponseEntity.ok("Delete ImportHistory");
+    }
     @GetMapping("/get_products")
     public ResponseEntity<List<GetProductsDto>> getProducts(
             @RequestParam ProductType productType,
