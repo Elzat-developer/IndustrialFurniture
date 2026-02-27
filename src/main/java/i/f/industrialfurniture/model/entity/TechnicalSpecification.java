@@ -16,6 +16,6 @@ public class TechnicalSpecification {
     @Column(name = "file_name")
     private String fileName;
     @OneToOne
-    @JoinColumn(name = "product_id")
+    @JoinColumn(name = "product_id", unique = true)
     private Product product;
 }

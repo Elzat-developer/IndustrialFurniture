@@ -45,7 +45,9 @@ public interface UserService {
 
     List<GetCategoriesUserDto> getCategories(CategoryType categoryType);
 
-    List<GetProductsUserDto> getProductsUserDto(ProductType productType);
+    List<GetProductsUserDto> getProductsUserDto(ProductType productType,Boolean active);
 
     byte[] generateCpPdf(List<CartItemDto> cartItemDtoList, BigDecimal totalSum);
+
+    List<GetProductsUserDto> getSimilarProducts(Integer productId);
 }

@@ -59,6 +59,8 @@ public class Product {
     @OneToOne
     @JoinColumn(name = "category_id")
     private Category category;
+    @OneToOne(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private TechnicalSpecification technicalSpecification;
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> photos = new ArrayList<>();
 }

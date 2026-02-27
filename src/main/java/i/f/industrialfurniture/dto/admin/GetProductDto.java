@@ -29,6 +29,8 @@ public record GetProductDto(
         Integer categoryId,
         Integer quantity,
         ProductType productType,
-        List<GetPhotoDto> photos
+        List<GetPhotoDto> photos,
+        String techSpecUrl, // URL для скачивания
+        String techSpecName // Красивое имя файла
 ) {
 }

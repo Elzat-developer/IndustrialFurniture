@@ -32,14 +32,18 @@ public class UserController {
         return ResponseEntity.ok(categoriesUserDtoList);
     }
     @GetMapping("/get_products")
-    public ResponseEntity<List<GetProductsUserDto>> getProductsUserDto(@RequestParam ProductType productType){
-        List<GetProductsUserDto> getProductsUserDtoList = userService.getProductsUserDto(productType);
+    public ResponseEntity<List<GetProductsUserDto>> getProductsUserDto(@RequestParam ProductType productType,@RequestParam Boolean active){
+        List<GetProductsUserDto> getProductsUserDtoList = userService.getProductsUserDto(productType,active);
         return ResponseEntity.ok(getProductsUserDtoList);
     }
     @GetMapping("/get_product/{productId}")
     public ResponseEntity<GetProductDto> getProduct(@PathVariable Integer productId){
         GetProductDto getProductDto = adminService.getProduct(productId);
         return ResponseEntity.ok(getProductDto);
+    }
+    @GetMapping("/similar_products/{productId}")
+    public ResponseEntity<List<GetProductsUserDto>> getSimilarProducts(@PathVariable Integer productId) {
+        return ResponseEntity.ok(userService.getSimilarProducts(productId));
     }
     @GetMapping("/get_products_filter")
     public ResponseEntity<List<GetProductsUserDto>> getFilteredProducts(

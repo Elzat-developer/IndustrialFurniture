@@ -11,6 +11,7 @@ public record GetProductsUserDto(
         String material,
         Integer categoryId,
         ProductType productType,
+        Boolean active,
         GetPhotoDto photoDtoList
 ) {
 }

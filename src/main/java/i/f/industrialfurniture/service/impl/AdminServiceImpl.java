@@ -238,6 +238,7 @@ public class AdminServiceImpl implements AdminService {
                 product.getMaterial(),
                 product.getCategory().getId(),
                 product.getProductType(),
+                product.isActive(),
                 photoDto
         );
     }
@@ -983,7 +984,7 @@ public class AdminServiceImpl implements AdminService {
                 }
 
                 // Возвращаем путь для сохранения в БД (относительный)
-                return "/uploads/products/" + fileName;
+                return filePath.toString();
             } else {
                 // Если не картинка
                 String fileName = baseName + "_" + originalFilename;
@@ -991,7 +992,7 @@ public class AdminServiceImpl implements AdminService {
                 log.info("📄 Сохраняем файл без изменений: {}", originalFilename);
                 Files.createDirectories(uploadDir);
                 multipartFile.transferTo(filePath);
-                return "/uploads/products/" + fileName;
+                return filePath.toString();
             }
         } catch (IOException e) {
             log.error("❌ Ошибка при сохранении '{}': {}", originalFilename, e.getMessage());
@@ -1026,6 +1027,11 @@ public class AdminServiceImpl implements AdminService {
                 ? new HashMap<>(product.getSpecifications())
                 : Collections.emptyMap();
 
+        var techSpec = Optional.ofNullable(product.getTechnicalSpecification());
+
+        String tsUrl = techSpec.map(TechnicalSpecification::getFileUrl).orElse(null);
+        String tsName = techSpec.map(TechnicalSpecification::getFileName).orElse(null);
+
         return new GetProductDto(
                 product.getId(), // Если id в базе Integer, проверка на null тут избыточна, JPA вернет либо id, либо упадет раньше
                 product.getProductName(),
@@ -1047,7 +1053,9 @@ public class AdminServiceImpl implements AdminService {
                 categoryId,
                 product.getQuantity(),
                 product.getProductType(),
-                photos
+                photos,
+                tsUrl,
+                tsName
         );
     }
 

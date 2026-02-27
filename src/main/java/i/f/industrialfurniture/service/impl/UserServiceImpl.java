@@ -13,6 +13,7 @@ import i.f.industrialfurniture.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -370,8 +371,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<GetProductsUserDto> getProductsUserDto(ProductType productType) {
-        List<Product> products = productRepo.findAllByProductType(productType);
+    public List<GetProductsUserDto> getProductsUserDto(ProductType productType,Boolean active) {
+        List<Product> products = productRepo.findAllByProductTypeAndActive(productType,active);
         return products.stream()
                 .map(this::toProduct)
                 .toList();
@@ -418,6 +419,55 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Ошибка при создании PDF", e);
         }
     }
+
+    @Override
+    public List<GetProductsUserDto> getSimilarProducts(Integer productId) {
+        Product current = productRepo.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Товар не найден"));
+
+        if (current.getCategory() == null) return Collections.emptyList();
+
+        int targetSize = 4;
+
+        // 1. Пытаемся найти идеальные совпадения (+/- 20% цены и тот же тип)
+        BigDecimal price = current.getPrice();
+        BigDecimal minPrice = price.multiply(BigDecimal.valueOf(0.8));
+        BigDecimal maxPrice = price.multiply(BigDecimal.valueOf(1.2));
+
+        List<Product> resultList = new ArrayList<>(productRepo.findSmartSimilar(
+                current.getCategory().getId(),
+                productId,
+                current.getProductType(),
+                minPrice,
+                maxPrice,
+                PageRequest.of(0, targetSize)
+        ));
+
+        // 2. Если нашли меньше targetSize, добираем остальное из той же категории
+        if (resultList.size() < targetSize) {
+            int needsToFill = targetSize - resultList.size();
+
+            // Собираем ID, которые уже есть в списке, чтобы не дублировать
+            List<Integer> excludeIds = new ArrayList<>();
+            excludeIds.add(productId);
+            resultList.forEach(p -> excludeIds.add(p.getId()));
+
+            List<Product> fallback = productRepo.findFallbackSimilar(
+                    current.getCategory().getId(),
+                    productId,
+                    excludeIds,
+                    PageRequest.of(0, needsToFill)
+            );
+
+            resultList.addAll(fallback);
+        }
+
+        // 3. Маппим в DTO через твой метод
+        return resultList.stream()
+                .map(this::toProduct)
+                .toList();
+    }
+
     private String getBase64ImageFromUrl(String fileUrl) {
         try {
             if (fileUrl == null || fileUrl.isEmpty()) return null;
@@ -462,6 +512,7 @@ public class UserServiceImpl implements UserService {
                 product.getMaterial(),
                 product.getCategory().getId(),
                 product.getProductType(),
+                product.isActive(),
                 photoDto
         );
     }
