@@ -39,22 +39,19 @@ jobs:
           USER: ${{ secrets.SERVER_USER }}
           PORT: ${{ secrets.SERVER_PORT }}
         run: |
-          # 3.1. Создаем директорию и файл, чтобы не было ошибки "No such file"
+          # 3.1. Подготовка локального окружения в GitHub
           mkdir -p ~/.ssh
           touch ~/.ssh/known_hosts
-          
-          # 3.2. Чистим старые записи (на всякий случай) и добавляем актуальный ключ
-          ssh-keygen -R $HOST || true
           ssh-keyscan -p $PORT -H $HOST >> ~/.ssh/known_hosts
           
-          # 3.3. Создаем папку на сервере
-          ssh -p $PORT $USER@$HOST "mkdir -p /opt/industrial-furniture"
+          # 3.2. Создаем папку (добавлен флаг игнорирования проверки ключа)
+          ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "mkdir -p /opt/industrial-furniture"
           
-          # 3.4. Копируем JAR
-          rsync -avz -e "ssh -p $PORT" ./build/libs/IndustrialFurniture-0.0.1-SNAPSHOT.jar $USER@$HOST:/opt/industrial-furniture/
+          # 3.3. Копируем JAR (добавлен флаг игнорирования проверки ключа)
+          rsync -avz -e "ssh -p $PORT -o StrictHostKeyChecking=no" ./build/libs/IndustrialFurniture-0.0.1-SNAPSHOT.jar $USER@$HOST:/opt/industrial-furniture/
           
-          # 3.5. Перезапуск
-          ssh -p $PORT $USER@$HOST "
+          # 3.4. Перезапуск сервиса
+          ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "
             echo 'Restarting Spring Boot service...'
             sudo systemctl restart industrial-furniture
             echo 'Deployment successful! 🚀'
