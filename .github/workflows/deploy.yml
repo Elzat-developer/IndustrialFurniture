@@ -40,15 +40,14 @@ jobs:
           PORT: ${{ secrets.SERVER_PORT }}
         run: |
           mkdir -p ~/.ssh
-          # Добавляем -v для отладки, если снова упадет - увидим почему
-          ssh-keyscan -p ${{ secrets.SERVER_PORT }} -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts || echo "Keyscan failed but continuing..."
+          # Добавляем ключ сервера в доверенные, игнорируя ошибки поиска
+          ssh-keyscan -p ${{ secrets.SERVER_PORT }} -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts || true
           
-          # Явно пропишем флаги для обхода всех проверок
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "mkdir -p /opt/industrial-furniture"
+          # Копируем JAR с обходом проверки ключей (StrictHostKeyChecking=no)
+          rsync -avz -e "ssh -p ${{ secrets.SERVER_PORT }} -o StrictHostKeyChecking=no" ./build/libs/IndustrialFurniture-0.0.1-SNAPSHOT.jar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/opt/industrial-furniture/
           
-          rsync -avz -e "ssh -p ${{ secrets.SERVER_PORT }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ./build/libs/IndustrialFurniture-0.0.1-SNAPSHOT.jar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/opt/industrial-furniture/
-          
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
+          # Перезапуск сервиса
+          ssh -o StrictHostKeyChecking=no -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
             sudo systemctl restart industrial-furniture
             echo 'Deployment successful! 🚀'
           "
