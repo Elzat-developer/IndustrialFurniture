@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS products (
                                         dimensions VARCHAR(255) DEFAULT NULL,
                                         weight DOUBLE DEFAULT NULL,
                                         country VARCHAR(255) DEFAULT NULL,
+                                        width INT NULL,
+                                        depth INT NULL,
+                                        height INT NULL,
+                                        power VARCHAR(100) NULL,
+                                        voltage VARCHAR(100) NULL,
                                         created_at DATETIME DEFAULT NULL,
                                         updated_at DATETIME DEFAULT NULL,
                                         active BOOLEAN NOT NULL DEFAULT TRUE, -- Флаг архивации товара
