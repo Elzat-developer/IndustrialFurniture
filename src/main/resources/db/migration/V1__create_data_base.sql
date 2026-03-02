@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS products (
                                         material VARCHAR(255) DEFAULT NULL,
                                         dimensions VARCHAR(255) DEFAULT NULL,
                                         weight DOUBLE DEFAULT NULL,
+                                        country VARCHAR(255) DEFAULT NULL,
                                         created_at DATETIME DEFAULT NULL,
                                         updated_at DATETIME DEFAULT NULL,
                                         active BOOLEAN NOT NULL DEFAULT TRUE, -- Флаг архивации товара
