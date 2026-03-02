@@ -39,9 +39,10 @@ jobs:
           USER: ${{ secrets.SERVER_USER }}
           PORT: ${{ secrets.SERVER_PORT }}
         run: |
-          # 3.1. Очищаем старые записи и добавляем актуальный ключ сервераа
+          # 3.1. Создаем папку, пустой файл и добавляем ключи
           mkdir -p ~/.ssh
-          ssh-keygen -R $HOST || true
+          touch ~/.ssh/known_hosts
+          ssh-keygen -R $HOST
           ssh-keyscan -p $PORT -H $HOST >> ~/.ssh/known_hosts
           
           # 3.2. Создаем папку на сервере, если ее нет
