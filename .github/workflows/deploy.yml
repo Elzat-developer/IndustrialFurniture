@@ -39,11 +39,8 @@ jobs:
           USER: ${{ secrets.SERVER_USER }}
           PORT: ${{ secrets.SERVER_PORT }}
         run: |
-          # 3.1. Создаем папку, пустой файл и добавляем ключи
-          mkdir -p ~/.ssh
-          touch ~/.ssh/known_hosts
-          ssh-keygen -R $HOST
-          ssh-keyscan -p $PORT -H $HOST >> ~/.ssh/known_hosts
+          # 3.1. Добавляем сервер в доверенные (чтобы не было вопроса yes/no)
+          ssh-keyscan -p $PORT $HOST >> ~/.ssh/known_hosts
           
           # 3.2. Создаем папку на сервере, если ее нет
           ssh -p $PORT $USER@$HOST "mkdir -p /opt/industrial-furniture"
