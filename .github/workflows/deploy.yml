@@ -39,7 +39,7 @@ jobs:
           USER: ${{ secrets.SERVER_USER }}
           PORT: ${{ secrets.SERVER_PORT }}
         run: |
-          # 3.1. Очищаем старые записи и добавляем актуальный ключ сервера
+          # 3.1. Очищаем старые записи и добавляем актуальный ключ сервераа
           mkdir -p ~/.ssh
           ssh-keygen -R $HOST || true
           ssh-keyscan -p $PORT -H $HOST >> ~/.ssh/known_hosts
