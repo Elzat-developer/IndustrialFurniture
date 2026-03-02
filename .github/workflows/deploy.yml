@@ -39,16 +39,21 @@ jobs:
           USER: ${{ secrets.SERVER_USER }}
           PORT: ${{ secrets.SERVER_PORT }}
         run: |
-          # 3.1. Добавляем сервер в доверенные (чтобы не было вопроса yes/no)
-          ssh-keyscan -p $PORT $HOST >> ~/.ssh/known_hosts
+          # 3.1. Создаем директорию и файл, чтобы не было ошибки "No such file"
+          mkdir -p ~/.ssh
+          touch ~/.ssh/known_hosts
           
-          # 3.2. Создаем папку на сервере, если ее нет
+          # 3.2. Чистим старые записи (на всякий случай) и добавляем актуальный ключ
+          ssh-keygen -R $HOST || true
+          ssh-keyscan -p $PORT -H $HOST >> ~/.ssh/known_hosts
+          
+          # 3.3. Создаем папку на сервере
           ssh -p $PORT $USER@$HOST "mkdir -p /opt/industrial-furniture"
           
-          # 3.3. Копируем собранный JAR-файл на сервер
+          # 3.4. Копируем JAR
           rsync -avz -e "ssh -p $PORT" ./build/libs/IndustrialFurniture-0.0.1-SNAPSHOT.jar $USER@$HOST:/opt/industrial-furniture/
           
-          # 3.4. Перезапускаем Spring Boot через systemctl
+          # 3.5. Перезапуск
           ssh -p $PORT $USER@$HOST "
             echo 'Restarting Spring Boot service...'
             sudo systemctl restart industrial-furniture
