@@ -1,1 +1,0 @@
-ALTER TABLE news MODIFY COLUMN description TEXT;

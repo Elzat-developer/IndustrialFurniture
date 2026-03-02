@@ -90,9 +90,9 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public List<GetProductsDto> getProducts(ProductType productType,Boolean active) {
         // Формируем запрос "на лету"
-        Specification<Product> spec = Specification.where(
-                ProductSpecifications.hasType(productType))
-                .and(ProductSpecifications.hasActiveStatus(active));
+        Specification<Product> spec = Specification.allOf(
+                ProductSpecifications.hasType(productType),
+                ProductSpecifications.hasActiveStatus(active));
 
         // Один запрос в базу, который вернет именно то, что нужно для нажатой кнопки
         return productRepo.findAll(spec).stream()

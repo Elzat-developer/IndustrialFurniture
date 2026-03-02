@@ -10,4 +10,6 @@ VALUES (
             '09:00 18:00'
        )
 ON DUPLICATE KEY UPDATE
-    text = VALUES(text);
+                     name = VALUES(name),
+                     text = VALUES(text),
+                     email = VALUES(email);
