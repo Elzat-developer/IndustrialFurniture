@@ -40,9 +40,6 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(request -> request
                         .requestMatchers(
                                 "/api/v1/auth/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html/**",
-                                "/v3/api-docs/**",
                                 "/api/v1/user/**",
                                 "/uploads/**"
                         ).permitAll()
@@ -78,30 +75,33 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-//        configuration.setAllowedOrigins(List.of("*")); // Разрешаем все домены, лучше потом ограничить
-        // 1. РАЗРЕШЕННЫЕ ИСТОЧНИКИ (Allowed Origins)
+
+        // 1. ТОЛЬКО ДОВЕРЕННЫЕ ДОМЕНЫ
         configuration.setAllowedOrigins(List.of(
-                // VERCEL PRODUCTION FRONTEND
-
-                // LOCAL DEVELOPMENT (Рекомендуется использовать HTTPS, если возможно)
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "http://127.0.0.1:3000",
-
-                // Прочие локальные хосты
-                "http://127.0.0.1:5500",
-                "http://localhost:8080" // Для Swagger UI на самом сервере
+                "https://richart.kz",
+                "https://www.richart.kz"
         ));
+
+        // 2. ОГРАНИЧЕННЫЙ СПИСОК МЕТОДОВ
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+
+        // 3. НЕОБХОДИМЫЕ ЗАГОЛОВКИ
         configuration.setAllowedHeaders(List.of(
-                "Authorization",      // ← Главный заголовок для JWT
+                "Authorization",
                 "Content-Type",
                 "Accept",
                 "Origin",
                 "X-Requested-With"
         ));
+
+        // 4. ЭКСПОЗИЦИЯ JWT (чтобы фронт мог читать токен из заголовка)
         configuration.setExposedHeaders(List.of("Authorization"));
-        configuration.setAllowCredentials(true); // если нужно передавать куки/авторизацию
+
+        // 5. БЕЗОПАСНОСТЬ КРЕДЕНШЛОВ
+        configuration.setAllowCredentials(true);
+
+        // Кэшируем разрешение на 30 минут, чтобы снизить нагрузку
+        configuration.setMaxAge(1800L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
