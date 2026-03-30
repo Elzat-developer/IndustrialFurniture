@@ -476,11 +476,11 @@ public class UserServiceImpl implements UserService {
 
             // Указываем АБСОЛЮТНЫЙ путь, который мы настроили на сервере
             // На локалке можешь создать такую же папку или использовать условие
-            Path path = Paths.get("/var/www/industrial-furniture/uploads").resolve(fileName);
+            Path path = Paths.get("/var/www/industrial-furniture/uploads/product-photos").resolve(fileName);
 
             if (!Files.exists(path)) {
                 // Если путь выше не сработал (например, на локалке), пробуем относительный
-                path = Paths.get("uploads").resolve(fileName).toAbsolutePath();
+                path = Paths.get("uploads/product-photos").resolve(fileName).toAbsolutePath();
             }
 
             if (!Files.exists(path)) {
