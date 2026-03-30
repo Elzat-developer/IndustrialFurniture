@@ -472,25 +472,29 @@ public class UserServiceImpl implements UserService {
         try {
             if (fileUrl == null || fileUrl.isEmpty()) return null;
 
-            // 1. Извлекаем только имя файла из URL (например, из "http://.../uploads/1.jpg" достаем "1.jpg")
             String fileName = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
 
-            // 2. Укажи путь к папке, где физически лежат файлы (та, что проброшена в /uploads/**)
-            // Если папка uploads лежит в корне проекта:
-            Path path = Paths.get("uploads").resolve(fileName).toAbsolutePath();
+            // Указываем АБСОЛЮТНЫЙ путь, который мы настроили на сервере
+            // На локалке можешь создать такую же папку или использовать условие
+            Path path = Paths.get("/var/www/industrial-furniture/uploads").resolve(fileName);
 
             if (!Files.exists(path)) {
-                System.err.println("Файл не найден по пути: " + path);
+                // Если путь выше не сработал (например, на локалке), пробуем относительный
+                path = Paths.get("uploads").resolve(fileName).toAbsolutePath();
+            }
+
+            if (!Files.exists(path)) {
+                System.err.println("❌ Файл не найден ни по одному пути: " + fileName);
                 return null;
             }
 
-            // 3. Читаем и конвертируем
             byte[] imageBytes = Files.readAllBytes(path);
             String base64 = Base64.getEncoder().encodeToString(imageBytes);
-            String extension = fileName.substring(fileName.lastIndexOf(".") + 1);
+            String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
 
-            return "data:image/" + extension + ";base64," + base64;
+            return "data:image/" + (extension.equals("jpg") ? "jpeg" : extension) + ";base64," + base64;
         } catch (Exception e) {
+            System.err.println("❌ Ошибка конвертации Base64: " + e.getMessage());
             return null;
         }
     }
