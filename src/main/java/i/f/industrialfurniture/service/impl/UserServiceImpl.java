@@ -51,7 +51,7 @@ public class UserServiceImpl implements UserService {
     private final ProductPhotoService productPhotoService;
     private final TemplateEngine templateEngine;
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public CartDto getCart(String cartToken) {
         Cart cart = cartRepo.findByCartToken(cartToken)
                 .orElseGet(() -> createNewCart(cartToken));

@@ -77,7 +77,7 @@ public class UserController {
 
         // 3. Возвращаем PDF ответ
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=Commercial_Proposal.pdf")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=КП.pdf")
                 .contentType(MediaType.APPLICATION_PDF) // Указываем, что это PDF
                 .body(fileContent);
     }
