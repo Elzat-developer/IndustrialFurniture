@@ -12,6 +12,7 @@ public class Company {
     @Column(name = "id", nullable = false)
     private Integer id;
     private String name;
+    @Column(columnDefinition = "TEXT")
     private String text;
     private String email;
     private String phone;
