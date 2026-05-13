@@ -27,8 +27,9 @@ public class UserController {
     private final UserService userService;
     private final AdminService adminService;
     @GetMapping("/get_categories")
-    public ResponseEntity<List<GetCategoriesUserDto>> getCategories(@RequestParam CategoryType categoryType){
-        List<GetCategoriesUserDto> categoriesUserDtoList = userService.getCategories(categoryType);
+    public ResponseEntity<List<GetCategoriesUserDto>> getCategories(@RequestParam CategoryType categoryType,
+                                                                    @RequestParam Boolean active){
+        List<GetCategoriesUserDto> categoriesUserDtoList = userService.getCategories(categoryType,active);
         return ResponseEntity.ok(categoriesUserDtoList);
     }
     @GetMapping("/get_products")

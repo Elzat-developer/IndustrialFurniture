@@ -3,6 +3,7 @@ package i.f.industrialfurniture.service.impl;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import i.f.industrialfurniture.dto.order.*;
 import i.f.industrialfurniture.dto.user.*;
+import i.f.industrialfurniture.model.CategorySpecifications;
 import i.f.industrialfurniture.model.CategoryType;
 import i.f.industrialfurniture.model.PaidStatus;
 import i.f.industrialfurniture.model.ProductType;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -363,9 +365,13 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<GetCategoriesUserDto> getCategories(CategoryType categoryType) {
-        List<Category> categories = categoryRepo.findAllByCategoryType(categoryType);
-        return categories.stream()
+    public List<GetCategoriesUserDto> getCategories(CategoryType categoryType,Boolean active) {
+        // Формируем запрос "на лету"
+        Specification<Category> spec = Specification.allOf(
+                CategorySpecifications.hasType(categoryType),
+                CategorySpecifications.hasActiveStatus(active)
+        );
+        return categoryRepo.findAll(spec).stream()
                 .map(this::toCategory)
                 .toList();
     }

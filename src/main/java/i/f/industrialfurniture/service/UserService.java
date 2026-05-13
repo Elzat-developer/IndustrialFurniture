@@ -43,7 +43,7 @@ public interface UserService {
 
     NewsIdDto getNewsId(Integer newsId);
 
-    List<GetCategoriesUserDto> getCategories(CategoryType categoryType);
+    List<GetCategoriesUserDto> getCategories(CategoryType categoryType,Boolean active);
 
     List<GetProductsUserDto> getProductsUserDto(ProductType productType,Boolean active);
 
