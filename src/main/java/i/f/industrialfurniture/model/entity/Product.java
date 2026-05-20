@@ -21,6 +21,7 @@ public class Product {
     private Integer id;
     @Column(name = "product_name")
     private String productName;
+    @Column(name = "description", length = 3000)
     private String description;
     private String tag;//артикуль
     private BigDecimal price;
