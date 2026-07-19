@@ -13,6 +13,7 @@ import i.f.industrialfurniture.service.ProductPhotoService;
 import i.f.industrialfurniture.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.PageRequest;
@@ -190,6 +191,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "orders",allEntries = true)
     public OrderResponseDto placeOrder(String cartToken, OrderRequestDto customerInfo) {
         // 1. Получаем корзину (через твой уже готовый сервис)
         CartDto cart = getCart(cartToken);
@@ -237,6 +239,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "orders")
     public List<OrderHistoryUserDto> getOrdersByPhone(String phone) {
         List<Order> orders = orderRepo.findAllByCustomerPhoneOrderByOrderStartDateDesc(phone);
 
@@ -256,6 +259,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "orders")
     public OrderDetailsDto getOrderDetails(Integer orderId) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Заказ не найден!"));
