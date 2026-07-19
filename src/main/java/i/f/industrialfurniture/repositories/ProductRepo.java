@@ -16,18 +16,18 @@ import java.util.List;
 
 @Repository
 public interface ProductRepo extends JpaRepository<Product,Integer>, JpaSpecificationExecutor<Product> {
-    // EntityGraph говорит Hibernate достать photos и category сразу через SQL JOIN,
-    // а не делать сотни мелких запросов потом.
+
     @EntityGraph(attributePaths = {"photos", "category"})
-    List<Product> findAllByProductTypeAndActive(ProductType productType,Boolean active);
-    // Основной запрос: Категория + Цена + Тип
+    List<Product> findAllByProductTypeAndActive(ProductType productType, Boolean active);
+
+    // Добавлен EntityGraph для жадной загрузки фото, чтобы избежать N+1 на витрине
+    @EntityGraph(attributePaths = {"photos"})
     @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId " +
             "AND p.id != :productId " +
             "AND p.active = true " +
             "AND p.price BETWEEN :minPrice AND :maxPrice " +
-            "ORDER BY " +
-            "CASE WHEN p.productType = :pType THEN 0 ELSE 1 END, " +
-            "RAND()") // Для MySQL можно писать RAND() прямо в @Query в новых версиях Spring Data или FUNCTION('RAND')
+            // Убрали RAND(). Лучше сортировать предсказуемо и быстро, а шафлить в Java.
+            "ORDER BY CASE WHEN p.productType = :pType THEN 0 ELSE 1 END, p.createdAt DESC")
     List<Product> findSmartSimilar(
             @Param("categoryId") Integer categoryId,
             @Param("productId") Integer productId,
@@ -36,12 +36,14 @@ public interface ProductRepo extends JpaRepository<Product,Integer>, JpaSpecific
             @Param("maxPrice") BigDecimal maxPrice,
             Pageable pageable);
 
-    // Запасной запрос: Только категория (исключая уже найденные ID)
+    @EntityGraph(attributePaths = {"photos"})
     @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId " +
             "AND p.id != :productId " +
+            // Важно: если excludeIds пустой, SQL упадет с синтаксической ошибкой (NOT IN ()).
+            // В Service обязательно проверяй: if(excludeIds.isEmpty()) используй другой метод или передавай [-1]
             "AND p.id NOT IN :excludeIds " +
             "AND p.active = true " +
-            "ORDER BY RAND()")
+            "ORDER BY p.createdAt DESC")
     List<Product> findFallbackSimilar(
             @Param("categoryId") Integer categoryId,
             @Param("productId") Integer productId,

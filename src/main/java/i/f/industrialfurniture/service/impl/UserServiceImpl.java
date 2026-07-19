@@ -143,7 +143,7 @@ public class UserServiceImpl implements UserService {
         Product product = productRepo.findById(dto.productId())
                 .orElseThrow(() -> new IllegalArgumentException("Товар не найден"));
 
-        CartItem existingItem = cartItemRepo.findByCartAndProduct(cart, product)
+        CartItem existingItem = cartItemRepo.findByCartIdAndProductId(cart.getId(), product.getId())
                 .orElseGet(() -> new CartItem(cart, product, 0));
 
         existingItem.setQuantity(existingItem.getQuantity() + dto.quantity());
@@ -191,7 +191,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "orders",allEntries = true)
+    @CacheEvict(value = {"orders_list","admin_orders","order_details"},key = "#customerInfo.phone()")
     public OrderResponseDto placeOrder(String cartToken, OrderRequestDto customerInfo) {
         // 1. Получаем корзину (через твой уже готовый сервис)
         CartDto cart = getCart(cartToken);
@@ -239,7 +239,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "orders")
+    @Cacheable(value = "orders_list",key = "#phone")
     public List<OrderHistoryUserDto> getOrdersByPhone(String phone) {
         List<Order> orders = orderRepo.findAllByCustomerPhoneOrderByOrderStartDateDesc(phone);
 
@@ -259,7 +259,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "orders")
+    @Cacheable(value = "order_details", key = "#orderId")
     public OrderDetailsDto getOrderDetails(Integer orderId) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Заказ не найден!"));
@@ -343,7 +343,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "news")
+    @Cacheable(value = "news_user_list")
     public List<UserNewsDto> getUserNews() {
         List<News> news = newsRepo.findAll();
         return news.stream()
@@ -361,7 +361,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "news")
+    @Cacheable(value = "news_details")
     public NewsIdDto getNewsId(Integer newsId) {
         News news = newsRepo.findById(newsId)
                 .orElseThrow(() -> new IllegalArgumentException("News Not Found"));

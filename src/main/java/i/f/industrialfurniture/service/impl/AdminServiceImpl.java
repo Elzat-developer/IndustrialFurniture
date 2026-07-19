@@ -20,6 +20,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.domain.Specification;
@@ -57,6 +59,7 @@ public class AdminServiceImpl implements AdminService {
     private final CompanyRepo companyRepo;
     private final TechnicalSpecificationRepo technicalSpecificationRepo;
     private final ImportHistoryService importHistoryService;
+    private final CacheManager cacheManager;
     @Value("${storage.base-path}")
     private String basePath;
     @Value("${storage.dirs.product}")
@@ -74,7 +77,7 @@ public class AdminServiceImpl implements AdminService {
     @PersistenceContext
     private EntityManager entityManager;
     @Override
-    @CacheEvict(value = "products", allEntries = true)
+    @CacheEvict(value = {"products","admin_product_details","admin_products"}, allEntries = true)
     public void createProduct(CreateProductDto createProductDto,List<MultipartFile> photos) {
             Product product = productMapper.createProductFromDto(createProductDto);
             product.setActive(true);
@@ -86,12 +89,13 @@ public class AdminServiceImpl implements AdminService {
             }
             if (photos != null && !photos.isEmpty()) {
                 setPhotosProduct(photos, product);
+
             }
             productRepo.save(product);
     }
 
     @Override
-    @Cacheable(value = "products")
+    @Cacheable(value = "admin_products")
     public List<GetProductsDto> getProducts(ProductType productType,Boolean active) {
         // Формируем запрос "на лету"
         Specification<Product> spec = Specification.allOf(
@@ -106,7 +110,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    @Cacheable(value = "products")
+    @Cacheable(value = "admin_product_details")
     public GetProductDto getProduct(Integer productId) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
@@ -115,7 +119,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "products", allEntries = true)
+    @CacheEvict(value = {"products","admin_product_details","admin_products"}, allEntries = true)
     public void editProduct(EditProductDto editProduct,List<MultipartFile> photos) {
         Product product = productRepo.findById(editProduct.productId())
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
@@ -150,7 +154,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "products", allEntries = true)
+    @CacheEvict(value = {"products","admin_product_details","admin_products"}, allEntries = true)
     public void deleteProduct(Integer productId) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found"));
@@ -160,18 +164,19 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    @CacheEvict(value = "categories", allEntries = true)
+    @CacheEvict(value = {"categories","admin_categories"}, allEntries = true)
     public void createCategory(CreateCategoryDto createCategoryDto) {
         Category category = new Category();
         category.setCategoryName(createCategoryDto.categoryName());
         category.setDescription(createCategoryDto.description());
         category.setCategoryType(createCategoryDto.categoryType());
-        setPhotoCategory(createCategoryDto.photoUrl(),category);
+        category.setPhotoUrl(processMultipartFile(createCategoryDto.photoUrl(),categoryDir));
+        //setPhotoCategory(createCategoryDto.photoUrl(),category);
         categoryRepo.save(category);
     }
 
     @Override
-    @Cacheable(value = "categories")
+    @Cacheable(value = "admin_categories")
     public List<GetCategories> getCategories(CategoryType categoryType,Boolean active) {
         // Формируем запрос "на лету"
         Specification<Category> spec = Specification.allOf(
@@ -184,7 +189,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    @CacheEvict(value = "categories", allEntries = true)
+    @CacheEvict(value = {"categories","admin_categories"}, allEntries = true)
     public void editCategory(EditCategoryDto editCategory) {
         Category category = categoryRepo.findById(editCategory.categoryId())
                 .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
@@ -202,13 +207,14 @@ public class AdminServiceImpl implements AdminService {
         }
         if (editCategory.photoUrl() != null && !editCategory.photoUrl().isEmpty()){
             deleteFileFromDisk(category.getPhotoUrl());
-            setPhotoCategory(editCategory.photoUrl(),category);
+            //setPhotoCategory(editCategory.photoUrl(),category);
+            category.setPhotoUrl(processMultipartFile(editCategory.photoUrl(),categoryDir));
         }
         categoryRepo.save(category);
     }
 
     @Override
-    @CacheEvict(value = "categories", allEntries = true)
+    @CacheEvict(value = {"categories","admin_categories"}, allEntries = true)
     public void deleteCategory(Integer categoryId) {
         Category category = categoryRepo.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
@@ -255,7 +261,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    @CacheEvict(value = "technical_specifications",allEntries = true)
+    @CacheEvict(value = "admin_technical_specifications",allEntries = true)
     public void createTechSpec(CreateTechSpec createTechSpec) {
         TechnicalSpecification specification = new TechnicalSpecification();
         specification.setFileName(createTechSpec.fileName());
@@ -264,13 +270,14 @@ public class AdminServiceImpl implements AdminService {
                     .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
             specification.setProduct(product);
         }
-        setFileUrl(createTechSpec, specification);
+        //setFileUrl(createTechSpec, specification);
+        specification.setFileUrl(processMultipartFile(createTechSpec.fileTechSpec(),techSpecDir));
         specificationRepo.save(specification);
         log.info("Тех Спецификация успешно создана для продукта ID={}", createTechSpec.product_id());
     }
 
     @Override
-    @Cacheable(value = "technical_specifications")
+    @Cacheable(value = "admin_technical_specifications")
     public List<GetTechSpecDto> getTechSpecs() {
         List<TechnicalSpecification> specifications = specificationRepo.findAll();
         return specifications.stream()
@@ -279,7 +286,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    @CacheEvict(value = "technical_specifications",allEntries = true)
+    @CacheEvict(value = "admin_technical_specifications",allEntries = true)
     public void editTechSpec(Integer tech_spec_id,EditTechSpec techSpecDto) {
         TechnicalSpecification specification = specificationRepo.findById(tech_spec_id)
                 .orElseThrow(() -> new IllegalArgumentException("Tech Spec Not Found!"));
@@ -294,29 +301,30 @@ public class AdminServiceImpl implements AdminService {
         }
         if (techSpecDto.fileTechSpec() != null && !techSpecDto.fileTechSpec().isEmpty()) {
             deleteFileFromDisk(specification.getFileUrl());
-            setFileUrl(techSpecDto, specification);
+            //setFileUrl(techSpecDto, specification);
+            specification.setFileUrl(processMultipartFile(techSpecDto.fileTechSpec(),techSpecDir));
         }
         specificationRepo.save(specification);
         log.info("Тех Спецификация успешно обновлена для продукта ID={}", tech_spec_id);
     }
 
-    private void setFileUrl(EditTechSpec techSpecDto, TechnicalSpecification specification) {
-        Path uploadDir = Paths.get(basePath, techSpecDir);
-        try {
-            Files.createDirectories(uploadDir);
-        } catch (IOException e) {
-            log.error("Ошибка при создании директории для технических спецификаций: {}", e.getMessage());
-            throw new RuntimeException("Ошибка при создании директории", e);
-        }
-        if (techSpecDto.fileTechSpec() != null && !techSpecDto.fileTechSpec().isEmpty()){
-            String techSpecPath = processMultipartFile(techSpecDto.fileTechSpec(), uploadDir);
-            specification.setFileUrl(techSpecPath);
-            log.info("✅ ТехСпек успешно обновлен: {}", techSpecPath);
-        }
-    }
+//    private void setFileUrl(EditTechSpec techSpecDto, TechnicalSpecification specification) {
+//        Path uploadDir = Paths.get(basePath, techSpecDir);
+//        try {
+//            Files.createDirectories(uploadDir);
+//        } catch (IOException e) {
+//            log.error("Ошибка при создании директории для технических спецификаций: {}", e.getMessage());
+//            throw new RuntimeException("Ошибка при создании директории", e);
+//        }
+//        if (techSpecDto.fileTechSpec() != null && !techSpecDto.fileTechSpec().isEmpty()){
+//            String techSpecPath = processMultipartFile(techSpecDto.fileTechSpec(), uploadDir);
+//            specification.setFileUrl(techSpecPath);
+//            log.info("✅ ТехСпек успешно обновлен: {}", techSpecPath);
+//        }
+//    }
 
     @Override
-    @CacheEvict(value = "technical_specifications",allEntries = true)
+    @CacheEvict(value = "admin_technical_specifications",allEntries = true)
     public void deleteTechSpec(Integer techSpecId) {
         TechnicalSpecification technicalSpecification = technicalSpecificationRepo.findById(techSpecId)
                 .orElseThrow(() -> new IllegalArgumentException("TechnicalSpecification Not Found!"));
@@ -327,7 +335,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    @Cacheable(value = "orders")
+    @Cacheable(value = "admin_orders")
     public List<GetOrdersDto> getOrders() {
         List<Order> order = orderRepo.findAll();
         return order.stream()
@@ -336,18 +344,53 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    @CacheEvict(value = "orders",allEntries = true)
+    @Transactional
     public void editPaidStatusOrder(Integer orderId, PaidStatus paidStatus) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
         order.setPaidStatus(paidStatus);
         orderRepo.save(order);
+
+        // Очищаем каждый кэш правильно и точечно
+        if (cacheManager != null) {
+            // 1. Сбрасываем список заказов конкретного пользователя по его телефону
+            if (order.getCustomerPhone() != null) {
+                Cache userOrders = cacheManager.getCache("orders_list");
+                if (userOrders != null) userOrders.evict(order.getCustomerPhone());
+            }
+            // 2. Сбрасываем кэш деталей конкретно этого заказа по его ID
+            Cache orderDetails = cacheManager.getCache("order_details");
+            if (orderDetails != null) orderDetails.evict(orderId);
+
+            // 3. Сбрасываем весь админский список, так как данные изменились
+            Cache adminOrders = cacheManager.getCache("admin_orders");
+            if (adminOrders != null) adminOrders.clear();
+        }
     }
 
     @Override
-    @CacheEvict(value = "orders",allEntries = true)
+    @Transactional
     public void deleteOrder(Integer orderId) {
+        // Сначала находим заказ, чтобы узнать телефон пользователя ДО удаления
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        String phone = order.getCustomerPhone();
+
         orderRepo.deleteById(orderId);
+
+        // Очищаем кэши
+        if (cacheManager != null) {
+            if (phone != null) {
+                Cache userOrders = cacheManager.getCache("orders_list");
+                if (userOrders != null) userOrders.evict(phone);
+            }
+            Cache orderDetails = cacheManager.getCache("order_details");
+            if (orderDetails != null) orderDetails.evict(orderId);
+
+            Cache adminOrders = cacheManager.getCache("admin_orders");
+            if (adminOrders != null) adminOrders.clear();
+        }
     }
 
     @Override
@@ -355,7 +398,8 @@ public class AdminServiceImpl implements AdminService {
     public void createPromotion(MultipartFile urlPhoto) {
         if (!urlPhoto.isEmpty()) {
             Promotion promotion = new Promotion();
-            setPhotoPromotion(urlPhoto, promotion);
+            //setPhotoPromotion(urlPhoto, promotion);
+            promotion.setUrlPhoto(processMultipartFile(urlPhoto,promotionDir));
             promotionRepo.save(promotion);
         }
     }
@@ -367,7 +411,8 @@ public class AdminServiceImpl implements AdminService {
             Promotion promotion = promotionRepo.findById(promotionId)
                     .orElseThrow(() -> new IllegalArgumentException("Promotion Not Found"));
             deleteFileFromDisk(promotion.getUrlPhoto());
-            setPhotoPromotion(urlPhoto, promotion);
+            //setPhotoPromotion(urlPhoto, promotion);
+            promotion.setUrlPhoto(processMultipartFile(urlPhoto,promotionDir));
             promotionRepo.save(promotion);
         }
     }
@@ -384,18 +429,19 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    @CacheEvict(value = "news",allEntries = true)
+    @CacheEvict(value = {"news","news_user_list","news_details"},allEntries = true)
     public void createNews(CreateNewsDto newsDto) {
         News news = new News();
         news.setName(newsDto.name());
         news.setDescription(newsDto.description());
         news.setCreateDateNews(LocalDateTime.now());
-        setPhotoNews(newsDto.newsPhotoUrl(),news);
+        //setPhotoNews(newsDto.newsPhotoUrl(),news);
+        news.setNewsPhotoUrl(processMultipartFile(newsDto.newsPhotoUrl(),newsDir));
         newsRepo.save(news);
     }
 
     @Override
-    @CacheEvict(value = "news",allEntries = true)
+    @CacheEvict(value = {"news","news_user_list","news_details"},allEntries = true)
     public void editNews(Integer newsId, CreateNewsDto editNews) {
         News news = newsRepo.findById(newsId)
                 .orElseThrow(() -> new IllegalArgumentException("News Not Found"));
@@ -407,13 +453,14 @@ public class AdminServiceImpl implements AdminService {
         }
         if (editNews.newsPhotoUrl() != null && !editNews.newsPhotoUrl().isEmpty()){
             deleteFileFromDisk(news.getNewsPhotoUrl());
-            setPhotoNews(editNews.newsPhotoUrl(),news);
+            //setPhotoNews(editNews.newsPhotoUrl(),news);
+            news.setNewsPhotoUrl(processMultipartFile(editNews.newsPhotoUrl(),newsDir));
         }
         newsRepo.save(news);
     }
 
     @Override
-    @CacheEvict(value = "news",allEntries = true)
+    @CacheEvict(value = {"news","news_user_list","news_details"},allEntries = true)
     public void deleteNews(Integer newsId) {
         News news = newsRepo.findById(newsId)
                 .orElseThrow(() -> new IllegalArgumentException("News Not Found"));
@@ -449,13 +496,15 @@ public class AdminServiceImpl implements AdminService {
         }
         if (editCompany.logoUrl() != null && !editCompany.logoUrl().isEmpty()) {
             deleteFileFromDisk(company.getLogoUrl());
-            setLogoCompany(editCompany.logoUrl(), company);
+            //setLogoCompany(editCompany.logoUrl(), company);
+            company.setLogoUrl(processMultipartFile(editCompany.logoUrl(), logoDir));
         }
         companyRepo.save(company);
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = {"products","admin_product_details","admin_products"}, allEntries = true)
     public ImportReportDto importProductsFromZip(MultipartFile file) {
         List<String> errors = new ArrayList<>();
         int successCount = 0;
@@ -716,7 +765,7 @@ public class AdminServiceImpl implements AdminService {
         return BigDecimal.ZERO;
     }
     @Override
-    @CacheEvict(value = "products",allEntries = true)
+    @CacheEvict(value = {"products","admin_product_details","admin_products"}, allEntries = true)
     public void editProductActive(Integer productId) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
@@ -725,7 +774,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    @CacheEvict(value = "categories",allEntries = true)
+    @CacheEvict(value = {"categories","admin_categories"}, allEntries = true)
     public void editCategoryActive(Integer categoryId) {
         Category category = categoryRepo.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
@@ -831,124 +880,120 @@ public class AdminServiceImpl implements AdminService {
 
         return 0.0;
     }
-    private void setLogoCompany(MultipartFile logoUrl, Company company) {
-        Path uploadDir = Paths.get(basePath, logoDir);
-        try {
-            Files.createDirectories(uploadDir);
-        } catch (IOException e) {
-            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
-            throw new RuntimeException("Не удалось создать папку загрузки", e);
-        }
-        String photoPromotionPath = processMultipartFile(logoUrl, uploadDir);
-        company.setLogoUrl(photoPromotionPath);
-        log.info("✅ Promotion успешно сохранено: {}", photoPromotionPath);
-    }
-    private void setPhotoCategory(MultipartFile photoUrl, Category category) {
-        Path uploadDir = Paths.get(basePath, categoryDir);
-        try {
-            Files.createDirectories(uploadDir);
-        } catch (IOException e) {
-            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
-            throw new RuntimeException("Не удалось создать папку загрузки", e);
-        }
-        String photoPromotionPath = processMultipartFile(photoUrl, uploadDir);
-        category.setPhotoUrl(photoPromotionPath);
-        log.info("✅ Promotion успешно сохранено: {}", photoPromotionPath);
-    }
-    private void setPhotoNews(MultipartFile newsPhotoUrl, News news) {
-        Path uploadDir = Paths.get(basePath, newsDir);
-        try {
-            Files.createDirectories(uploadDir);
-        } catch (IOException e) {
-            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
-            throw new RuntimeException("Не удалось создать папку загрузки", e);
-        }
-        String photoPromotionPath = processMultipartFile(newsPhotoUrl, uploadDir);
-        news.setNewsPhotoUrl(photoPromotionPath);
-        log.info("✅ Promotion успешно сохранено: {}", photoPromotionPath);
-    }
+//    private void setLogoCompany(MultipartFile logoUrl, Company company) {
+//        Path uploadDir = Paths.get(basePath, logoDir);
+//        try {
+//            Files.createDirectories(uploadDir);
+//        } catch (IOException e) {
+//            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
+//            throw new RuntimeException("Не удалось создать папку загрузки", e);
+//        }
+//        String photoPromotionPath = processMultipartFile(logoUrl, uploadDir);
+//        company.setLogoUrl(photoPromotionPath);
+//        log.info("✅ Promotion успешно сохранено: {}", photoPromotionPath);
+//    }
+//    private void setPhotoCategory(MultipartFile photoUrl, Category category) {
+//        Path uploadDir = Paths.get(basePath, categoryDir);
+//        try {
+//            Files.createDirectories(uploadDir);
+//        } catch (IOException e) {
+//            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
+//            throw new RuntimeException("Не удалось создать папку загрузки", e);
+//        }
+//        String photoPromotionPath = processMultipartFile(photoUrl, uploadDir);
+//        category.setPhotoUrl(photoPromotionPath);
+//        log.info("✅ Promotion успешно сохранено: {}", photoPromotionPath);
+//    }
+//    private void setPhotoNews(MultipartFile newsPhotoUrl, News news) {
+//        Path uploadDir = Paths.get(basePath, newsDir);
+//        try {
+//            Files.createDirectories(uploadDir);
+//        } catch (IOException e) {
+//            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
+//            throw new RuntimeException("Не удалось создать папку загрузки", e);
+//        }
+//        String photoPromotionPath = processMultipartFile(newsPhotoUrl, uploadDir);
+//        news.setNewsPhotoUrl(photoPromotionPath);
+//        log.info("✅ Promotion успешно сохранено: {}", photoPromotionPath);
+//    }
 
     private void setPhotosProduct(List<MultipartFile> photos, Product product) {
-        Path uploadDir = Paths.get(basePath, productDir);
-        try {
-            Files.createDirectories(uploadDir);
-        } catch (IOException e) {
-            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
-            throw new RuntimeException("Не удалось создать папку загрузки", e);
+        // 1. Базовая защита от пустых списков
+        if (photos == null || photos.isEmpty()) {
+            return;
         }
 
-        // 1. Проходим циклом по всем пришедшим файлам
+        // 2. Защита от NullPointerException, если Hibernate подсунул null вместо пустой коллекции
+        if (product.getPhotos() == null) {
+            product.setPhotos(new ArrayList<>());
+        }
+
+        // 3. Перебираем файлы и сохраняем каждый
         for (MultipartFile file : photos) {
             if (file != null && !file.isEmpty()) {
-                // 2. Сохраняем физический файл на диск и получаем путь (как ты делал для новостей)
-                String photoPath = processMultipartFile(file, uploadDir);
+                // Передаем файл и название директории (productDir) в наш безопасный единый метод
+                String relativePath = processMultipartFile(file, productDir);
 
-                // 3. Создаем новый объект сущности для изображения
-                // (Предположим, она называется ProductImage)
                 ProductImage productImage = new ProductImage();
-                productImage.setUrl(photoPath);
-                productImage.setProduct(product); // Привязываем картинку к нашему продукту
+                productImage.setUrl(relativePath);
+                productImage.setProduct(product);
 
-                // 4. Добавляем это изображение в список изображений продукта
-                // Убедись, что в классе Product список инициализирован: new ArrayList<>()
                 product.getPhotos().add(productImage);
-
-                log.info("✅ Фото продукта сохранено: {}", photoPath);
+                log.info("✅ Добавлено фото к продукту: {}", relativePath);
             }
         }
     }
 
-    private void deleteFileFromDisk(String urlPhoto) {
-        // 1. Проверка на null или пустоту, чтобы не тратить ресурсы
-        if (urlPhoto == null || urlPhoto.isBlank()) {
-            log.warn("⚠️ Попытка удалить пустой путь к файлу.");
+    private void deleteFileFromDisk(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
             return;
         }
 
         try {
-            Path path = Paths.get(urlPhoto);
+            // Строим полный путь и нормализуем его
+            Path fullPath = Paths.get(basePath, relativePath).toAbsolutePath().normalize();
+            Path baseDirPath = Paths.get(basePath).toAbsolutePath().normalize();
 
-            // 2. deleteIfExists — идеальный метод.
-            // Если файла нет (например, удалили вручную), он просто вернет false без ошибки.
-            boolean deleted = Files.deleteIfExists(path);
+            // Security Check: проверяем, что путь действительно внутри basePath
+            if (!fullPath.startsWith(baseDirPath)) {
+                log.warn("⚠️ Попытка Path Traversal при удалении! Путь: {}", relativePath);
+                return;
+            }
 
-            if (deleted) {
-                log.info("🗑️ Файл успешно удален: {}", urlPhoto);
-            } else {
-                log.warn("🔍 Файл не найден на диске, удаление пропущено: {}", urlPhoto);
+            if (Files.deleteIfExists(fullPath)) {
+                log.info("🗑️ Файл успешно удален: {}", fullPath);
             }
         } catch (IOException e) {
-            // Логируем ошибку, но не прерываем работу программы (чтобы админ мог доделать правки)
-            log.error("❌ Ошибка при удалении файла {}: {}", urlPhoto, e.getMessage());
+            log.error("❌ Ошибка при удалении файла {}: {}", relativePath, e.getMessage());
         }
     }
 
-    private void setPhotoPromotion(MultipartFile urlPhoto, Promotion promotion) {
-        Path uploadDir = Paths.get(basePath, promotionDir);
-        try {
-            Files.createDirectories(uploadDir);
-        } catch (IOException e) {
-            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
-            throw new RuntimeException("Не удалось создать папку загрузки", e);
-        }
-        String photoPromotionPath = processMultipartFile(urlPhoto, uploadDir);
-        promotion.setUrlPhoto(photoPromotionPath);
-        log.info("✅ Promotion успешно сохранено: {}", photoPromotionPath);
-    }
-    private void setFileUrl(CreateTechSpec createTechSpec, TechnicalSpecification specification) {
-        Path uploadDir = Paths.get(basePath, techSpecDir);
-        try {
-            Files.createDirectories(uploadDir);
-        } catch (IOException e) {
-            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
-            throw new RuntimeException("Не удалось создать папку загрузки", e);
-        }
-        if (!createTechSpec.fileTechSpec().isEmpty()){
-            String techSpecPath = processMultipartFile(createTechSpec.fileTechSpec(), uploadDir);
-            specification.setFileUrl(techSpecPath);
-            log.info("✅ ТехСпек успешно сохранено: {}", techSpecPath);
-        }
-    }
+//    private void setPhotoPromotion(MultipartFile urlPhoto, Promotion promotion) {
+//        Path uploadDir = Paths.get(basePath, promotionDir);
+//        try {
+//            Files.createDirectories(uploadDir);
+//        } catch (IOException e) {
+//            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
+//            throw new RuntimeException("Не удалось создать папку загрузки", e);
+//        }
+//        String photoPromotionPath = processMultipartFile(urlPhoto, uploadDir);
+//        promotion.setUrlPhoto(photoPromotionPath);
+//        log.info("✅ Promotion успешно сохранено: {}", photoPromotionPath);
+//    }
+//    private void setFileUrl(CreateTechSpec createTechSpec, TechnicalSpecification specification) {
+//        Path uploadDir = Paths.get(basePath, techSpecDir);
+//        try {
+//            Files.createDirectories(uploadDir);
+//        } catch (IOException e) {
+//            log.error("❌ Не удалось создать папку загрузки: {}", e.getMessage(), e);
+//            throw new RuntimeException("Не удалось создать папку загрузки", e);
+//        }
+//        if (!createTechSpec.fileTechSpec().isEmpty()){
+//            String techSpecPath = processMultipartFile(createTechSpec.fileTechSpec(), uploadDir);
+//            specification.setFileUrl(techSpecPath);
+//            log.info("✅ ТехСпек успешно сохранено: {}", techSpecPath);
+//        }
+//    }
     private GetOrdersDto toOrdersAll(Order order) {
         return new GetOrdersDto(
                 order.getId(),
@@ -962,8 +1007,14 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private boolean isRowEmpty(Row row) {
-        Cell firstCell = row.getCell(0);
-        return firstCell == null || firstCell.getCellType() == CellType.BLANK;
+        if (row == null) return true;
+        for (int c = row.getFirstCellNum(); c < row.getLastCellNum(); c++) {
+            Cell cell = row.getCell(c);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                return false; // Нашли хотя бы одну непустую ячейку
+            }
+        }
+        return true;
     }
     private GetTechSpecDto toTechSpec(TechnicalSpecification technicalSpecification) {
         Integer productId = null;
@@ -978,51 +1029,50 @@ public class AdminServiceImpl implements AdminService {
         );
     }
 
-    private String processMultipartFile(MultipartFile multipartFile, Path uploadDir) {
-        String originalFilename = multipartFile.getOriginalFilename();
-        String baseName = UUID.randomUUID().toString();
-        String contentType = multipartFile.getContentType();//
+    private String processMultipartFile(MultipartFile multipartFile, String targetDirName) {
+        // 1. Защита от null
+        String originalFilename = Optional.ofNullable(multipartFile.getOriginalFilename())
+                .orElse("unknown_file");
 
-        // 1. Извлекаем расширение (например, "png", "jpg", "webp")
-        String extension = "jpg"; // значение по умолчанию
-        if (originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+        // 2. Защита от Path Traversal: берем только конечное имя файла
+        String safeOriginalName = Paths.get(originalFilename).getFileName().toString();
+
+        String baseName = UUID.randomUUID().toString();
+        String contentType = Optional.ofNullable(multipartFile.getContentType()).orElse("");
+
+        String extension = "";
+        if (safeOriginalName.contains(".")) {
+            extension = safeOriginalName.substring(safeOriginalName.lastIndexOf(".") + 1).toLowerCase();
         }
 
+        Path uploadDir = Paths.get(basePath, targetDirName).toAbsolutePath().normalize();
+
         try {
+            Files.createDirectories(uploadDir);
+
             if (contentType.startsWith("image/")) {
-                log.info("📸 Обработка изображения: {} (формат: {})", originalFilename, extension);
-
-                String fileName = baseName + "." + extension;
+                String fileName = extension.isEmpty() ? baseName : baseName + "." + extension;
                 Path filePath = uploadDir.resolve(fileName);
-                Files.createDirectories(uploadDir);
 
-                // 2. Специальная обработка для WebP (если Thumbnailator его не съест)
-                if (extension.equals("webp")) {
-                    log.info("📄 WebP обнаружен, сохраняем как есть (без пережатия Thumbnailator)");
+                if (extension.equals("webp") || extension.equals("svg")) {
                     multipartFile.transferTo(filePath);
                 } else {
-                    // 3. Для PNG, JPG и прочих используем сжатие
                     net.coobird.thumbnailator.Thumbnails.of(multipartFile.getInputStream())
                             .size(1600, 1600)
                             .outputQuality(0.8)
-                            .outputFormat(extension) // Сохраняем оригинальный формат (png -> png, jpg -> jpg)
+                            .outputFormat(extension.isEmpty() ? "jpg" : extension)
                             .toFile(filePath.toFile());
                 }
-
-                // Возвращаем путь для сохранения в БД (относительный)
-                return filePath.toString();
+                return Paths.get(targetDirName, fileName).toString(); // Сохраняем в БД относительный путь!
             } else {
-                // Если не картинка
-                String fileName = baseName + "_" + originalFilename;
+                // Для не-картинок используем очищенное имя
+                String fileName = baseName + "_" + safeOriginalName;
                 Path filePath = uploadDir.resolve(fileName);
-                log.info("📄 Сохраняем файл без изменений: {}", originalFilename);
-                Files.createDirectories(uploadDir);
                 multipartFile.transferTo(filePath);
-                return filePath.toString();
+                return Paths.get(targetDirName, fileName).toString();
             }
         } catch (IOException e) {
-            log.error("❌ Ошибка при сохранении '{}': {}", originalFilename, e.getMessage());
+            log.error("❌ Ошибка при сохранении '{}': {}", safeOriginalName, e.getMessage());
             throw new RuntimeException("Ошибка при обработке файла", e);
         }
     }
