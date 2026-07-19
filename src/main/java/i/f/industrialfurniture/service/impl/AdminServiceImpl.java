@@ -21,6 +21,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,6 +91,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Cacheable(value = "products")
     public List<GetProductsDto> getProducts(ProductType productType,Boolean active) {
         // Формируем запрос "на лету"
         Specification<Product> spec = Specification.allOf(
@@ -104,6 +106,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
+    @Cacheable(value = "products")
     public GetProductDto getProduct(Integer productId) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
@@ -168,6 +171,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Cacheable(value = "categories")
     public List<GetCategories> getCategories(CategoryType categoryType,Boolean active) {
         // Формируем запрос "на лету"
         Specification<Category> spec = Specification.allOf(
@@ -251,6 +255,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "technical_specifications",allEntries = true)
     public void createTechSpec(CreateTechSpec createTechSpec) {
         TechnicalSpecification specification = new TechnicalSpecification();
         specification.setFileName(createTechSpec.fileName());
@@ -265,6 +270,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Cacheable(value = "technical_specifications")
     public List<GetTechSpecDto> getTechSpecs() {
         List<TechnicalSpecification> specifications = specificationRepo.findAll();
         return specifications.stream()
@@ -273,6 +279,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "technical_specifications",allEntries = true)
     public void editTechSpec(Integer tech_spec_id,EditTechSpec techSpecDto) {
         TechnicalSpecification specification = specificationRepo.findById(tech_spec_id)
                 .orElseThrow(() -> new IllegalArgumentException("Tech Spec Not Found!"));
@@ -309,6 +316,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "technical_specifications",allEntries = true)
     public void deleteTechSpec(Integer techSpecId) {
         TechnicalSpecification technicalSpecification = technicalSpecificationRepo.findById(techSpecId)
                 .orElseThrow(() -> new IllegalArgumentException("TechnicalSpecification Not Found!"));
@@ -319,6 +327,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Cacheable(value = "orders")
     public List<GetOrdersDto> getOrders() {
         List<Order> order = orderRepo.findAll();
         return order.stream()
@@ -327,6 +336,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "orders",allEntries = true)
     public void editPaidStatusOrder(Integer orderId, PaidStatus paidStatus) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
@@ -335,11 +345,13 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "orders",allEntries = true)
     public void deleteOrder(Integer orderId) {
         orderRepo.deleteById(orderId);
     }
 
     @Override
+    @CacheEvict(value = "promotions",allEntries = true)
     public void createPromotion(MultipartFile urlPhoto) {
         if (!urlPhoto.isEmpty()) {
             Promotion promotion = new Promotion();
@@ -349,6 +361,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "promotions",allEntries = true)
     public void editPromotion(Integer promotionId, MultipartFile urlPhoto) {
         if (urlPhoto != null && !urlPhoto.isEmpty()) {
             Promotion promotion = promotionRepo.findById(promotionId)
@@ -360,6 +373,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "promotions",allEntries = true)
     public void deletePromotion(Integer promotionId) {
         Promotion promotion = promotionRepo.findById(promotionId)
                 .orElseThrow(() -> new IllegalArgumentException("Promotion Not Found"));
@@ -370,6 +384,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "news",allEntries = true)
     public void createNews(CreateNewsDto newsDto) {
         News news = new News();
         news.setName(newsDto.name());
@@ -380,6 +395,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "news",allEntries = true)
     public void editNews(Integer newsId, CreateNewsDto editNews) {
         News news = newsRepo.findById(newsId)
                 .orElseThrow(() -> new IllegalArgumentException("News Not Found"));
@@ -397,6 +413,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "news",allEntries = true)
     public void deleteNews(Integer newsId) {
         News news = newsRepo.findById(newsId)
                 .orElseThrow(() -> new IllegalArgumentException("News Not Found"));
@@ -405,6 +422,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "companies",allEntries = true)
     public void editCompany(CreateCompanyDto editCompany) {
         Company company = companyRepo.findById(1)
                 .orElseThrow(() -> new IllegalArgumentException("Company Not Found"));
@@ -698,6 +716,7 @@ public class AdminServiceImpl implements AdminService {
         return BigDecimal.ZERO;
     }
     @Override
+    @CacheEvict(value = "products",allEntries = true)
     public void editProductActive(Integer productId) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
@@ -706,6 +725,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "categories",allEntries = true)
     public void editCategoryActive(Integer categoryId) {
         Category category = categoryRepo.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));

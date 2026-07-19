@@ -303,6 +303,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "promotions")
     public List<PromotionDto> getPromotions() {
         List<Promotion> promotions = promotionRepo.findAll();
         return promotions.stream()
@@ -311,6 +312,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "news")
     public List<NewsDto> getNews() {
         List<News> news = newsRepo.findAll();
         return news.stream()
@@ -319,6 +321,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "companies")
     public CompanyDto getCompany() {
         Company company = companyRepo.findById(1)
                 .orElseThrow(() -> new IllegalArgumentException("Company Not Found"));
@@ -336,6 +339,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "news")
     public List<UserNewsDto> getUserNews() {
         List<News> news = newsRepo.findAll();
         return news.stream()
@@ -353,6 +357,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "news")
     public NewsIdDto getNewsId(Integer newsId) {
         News news = newsRepo.findById(newsId)
                 .orElseThrow(() -> new IllegalArgumentException("News Not Found"));
