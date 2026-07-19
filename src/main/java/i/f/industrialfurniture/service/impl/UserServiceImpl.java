@@ -13,6 +13,7 @@ import i.f.industrialfurniture.service.ProductPhotoService;
 import i.f.industrialfurniture.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
@@ -365,6 +366,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "categories")
     public List<GetCategoriesUserDto> getCategories(CategoryType categoryType,Boolean active) {
         // Формируем запрос "на лету"
         Specification<Category> spec = Specification.allOf(
@@ -377,6 +379,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "products")
     public List<GetProductsUserDto> getProductsUserDto(ProductType productType,Boolean active) {
         List<Product> products = productRepo.findAllByProductTypeAndActive(productType,active);
         return products.stream()

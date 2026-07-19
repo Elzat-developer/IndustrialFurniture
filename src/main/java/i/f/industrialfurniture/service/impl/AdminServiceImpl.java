@@ -20,6 +20,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,6 +73,7 @@ public class AdminServiceImpl implements AdminService {
     @PersistenceContext
     private EntityManager entityManager;
     @Override
+    @CacheEvict(value = "products", allEntries = true)
     public void createProduct(CreateProductDto createProductDto,List<MultipartFile> photos) {
             Product product = productMapper.createProductFromDto(createProductDto);
             product.setActive(true);
@@ -110,6 +112,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "products", allEntries = true)
     public void editProduct(EditProductDto editProduct,List<MultipartFile> photos) {
         Product product = productRepo.findById(editProduct.productId())
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
@@ -144,6 +147,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "products", allEntries = true)
     public void deleteProduct(Integer productId) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new EntityNotFoundException("Product not found"));
@@ -153,6 +157,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "categories", allEntries = true)
     public void createCategory(CreateCategoryDto createCategoryDto) {
         Category category = new Category();
         category.setCategoryName(createCategoryDto.categoryName());
@@ -175,6 +180,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "categories", allEntries = true)
     public void editCategory(EditCategoryDto editCategory) {
         Category category = categoryRepo.findById(editCategory.categoryId())
                 .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
@@ -198,6 +204,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @CacheEvict(value = "categories", allEntries = true)
     public void deleteCategory(Integer categoryId) {
         Category category = categoryRepo.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));

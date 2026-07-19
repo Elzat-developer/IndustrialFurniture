@@ -60,7 +60,9 @@ dependencies {
     implementation 'commons-io:commons-io:2.15.1'
     implementation 'com.twelvemonkeys.imageio:imageio-webp:3.12.0'
     implementation 'com.twelvemonkeys.imageio:imageio-core:3.12.0'
-
+    // Cache
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
