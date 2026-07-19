@@ -3,6 +3,7 @@ package i.f.industrialfurniture.repositories;
 import i.f.industrialfurniture.model.ProductType;
 import i.f.industrialfurniture.model.entity.Product;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,9 @@ import java.util.List;
 
 @Repository
 public interface ProductRepo extends JpaRepository<Product,Integer>, JpaSpecificationExecutor<Product> {
+    // EntityGraph говорит Hibernate достать photos и category сразу через SQL JOIN,
+    // а не делать сотни мелких запросов потом.
+    @EntityGraph(attributePaths = {"photos", "category"})
     List<Product> findAllByProductTypeAndActive(ProductType productType,Boolean active);
     // Основной запрос: Категория + Цена + Тип
     @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId " +

@@ -27,13 +27,18 @@ public class UserController {
     private final UserService userService;
     private final AdminService adminService;
     @GetMapping("/get_categories")
-    public ResponseEntity<List<GetCategoriesUserDto>> getCategories(@RequestParam CategoryType categoryType,
-                                                                    @RequestParam Boolean active){
+    public ResponseEntity<List<GetCategoriesUserDto>> getCategories(
+            @RequestParam CategoryType categoryType,
+            @RequestParam Boolean active
+    ){
         List<GetCategoriesUserDto> categoriesUserDtoList = userService.getCategories(categoryType,active);
         return ResponseEntity.ok(categoriesUserDtoList);
     }
     @GetMapping("/get_products")
-    public ResponseEntity<List<GetProductsUserDto>> getProductsUserDto(@RequestParam ProductType productType,@RequestParam Boolean active){
+    public ResponseEntity<List<GetProductsUserDto>> getProductsUserDto(
+            @RequestParam ProductType productType,
+            @RequestParam Boolean active
+    ){
         List<GetProductsUserDto> getProductsUserDtoList = userService.getProductsUserDto(productType,active);
         return ResponseEntity.ok(getProductsUserDtoList);
     }
@@ -89,7 +94,7 @@ public class UserController {
 
     @PostMapping("/add_product_to_cart")
     public ResponseEntity<Void> addProductToCart(@RequestHeader("X-Cart-Token") String cartToken,
-                                           @RequestBody AddToCartDto dto) {
+                                                 @RequestBody AddToCartDto dto) {
         userService.addProductToCart(cartToken, dto);
         return ResponseEntity.ok().build();
     }
