@@ -1,13 +1,12 @@
 package i.f.industrialfurniture.dto.user;
 
+import i.f.industrialfurniture.model.PriceProductStatus;
 import i.f.industrialfurniture.model.ProductType;
-
-import java.math.BigDecimal;
 
 public record GetProductsUserDto(
         Integer productId,
         String productName,
-        String productPrice,
+        PriceProductStatus priceProductStatus,
         String material,
         Integer categoryId,
         ProductType productType,

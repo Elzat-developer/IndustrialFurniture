@@ -1,16 +1,16 @@
 package i.f.industrialfurniture.dto.user;
 
+import i.f.industrialfurniture.model.PriceProductStatus;
 import i.f.industrialfurniture.model.ProductType;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
 
 public record CreateProductDto(
         String productName,
         String description,
-        String tag,//артикуль
-        String price,
+        String tag, // артикул
+        PriceProductStatus priceProductStatus,
         String material,
         String dimensions,
         Double weight,
@@ -26,4 +26,9 @@ public record CreateProductDto(
         Integer quantity,
         ProductType productType
 ) {
+    public CreateProductDto {
+        if (priceProductStatus == null) {
+            priceProductStatus = PriceProductStatus.CHECK_PRICE;
+        }
+    }
 }

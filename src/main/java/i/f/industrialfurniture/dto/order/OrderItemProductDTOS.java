@@ -1,13 +1,12 @@
 package i.f.industrialfurniture.dto.order;
 
 import i.f.industrialfurniture.dto.user.GetPhotoDto;
-
-import java.math.BigDecimal;
+import i.f.industrialfurniture.model.PriceProductStatus;
 
 public record OrderItemProductDTOS(
         Integer productId,
         String productName,
-        String productPrice,
+        PriceProductStatus priceProductStatus,
         GetPhotoDto photo,
         Boolean active
 ) {

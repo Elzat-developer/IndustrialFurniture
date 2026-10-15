@@ -77,31 +77,18 @@ public class AdminServiceImpl implements AdminService {
     @PersistenceContext
     private EntityManager entityManager;
     public static String normalizePriceStatus(String input) {
-        if (input == null || input.isBlank()) {
-            return "Уточните цену";
-        }
-        String trimmed = input.trim();
-        String lower = trimmed.toLowerCase();
-        if (lower.contains("нет") || lower.contains("отсутств") || lower.contains("out")) {
-            return "Нет в наличии";
-        }
-        if (lower.contains("заказ") || lower.contains("order")) {
-            return "Под заказ";
-        }
-        if (lower.contains("уточн") || lower.contains("цен") || lower.contains("запрос") || lower.contains("price")) {
-            return "Уточните цену";
-        }
-        if (trimmed.equalsIgnoreCase("Уточните цену")) return "Уточните цену";
-        if (trimmed.equalsIgnoreCase("Нет в наличии")) return "Нет в наличии";
-        if (trimmed.equalsIgnoreCase("Под заказ")) return "Под заказ";
-        return trimmed;
+        return PriceProductStatus.of(input).value();
     }
 
     @Override
     @CacheEvict(value = {"products","admin_product_details","admin_products"}, allEntries = true)
     public void createProduct(CreateProductDto createProductDto,List<MultipartFile> photos) {
             Product product = productMapper.createProductFromDto(createProductDto);
-            product.setPrice(normalizePriceStatus(product.getPrice()));
+            if (createProductDto.priceProductStatus() != null) {
+                product.setPriceProductStatus(createProductDto.priceProductStatus());
+            } else {
+                product.setPriceProductStatus(PriceProductStatus.CHECK_PRICE);
+            }
             product.setActive(true);
             product.setCreatedAt(LocalDateTime.now());
             if (createProductDto.categoryId() != null){
@@ -147,8 +134,8 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
 
         productMapper.updateProductFromDto(editProduct,product);
-        if (editProduct.price() != null) {
-            product.setPrice(normalizePriceStatus(editProduct.price()));
+        if (editProduct.priceProductStatus() != null) {
+            product.setPriceProductStatus(editProduct.priceProductStatus());
         }
         if (editProduct.categoryId() != null) {
             Category category = categoryRepo.findById(editProduct.categoryId())
@@ -277,7 +264,7 @@ public class AdminServiceImpl implements AdminService {
         return new GetProductsUserDto(
                 product.getId(),
                 product.getProductName(),
-                product.getPrice(),
+                product.getPriceProductStatus(),
                 product.getMaterial(),
                 product.getCategory().getId(),
                 product.getProductType(),
@@ -603,7 +590,7 @@ public class AdminServiceImpl implements AdminService {
         // 1. Базовые поля (индексы 0-7)
         product.setProductName(getSafeString(row, 0));
         product.setTag(getSafeString(row, 1));
-        product.setPrice(normalizePriceStatus(getSafeString(row, 2)));
+        product.setPriceProductStatus(PriceProductStatus.of(getSafeString(row, 2)));
         product.setMaterial(getSafeString(row, 3));
         product.setDimensions(getSafeString(row, 4));
         product.setWeight(getSafeDouble(row, 5));
@@ -1141,7 +1128,7 @@ public class AdminServiceImpl implements AdminService {
                 product.getProductName(),
                 product.getDescription(),
                 product.getTag(),
-                product.getPrice(),
+                product.getPriceProductStatus(),
                 product.getMaterial(),
                 product.getDimensions(),
                 product.getWeight(),

@@ -1,9 +1,9 @@
 package i.f.industrialfurniture.dto.admin;
 
 import i.f.industrialfurniture.dto.user.GetPhotoDto;
+import i.f.industrialfurniture.model.PriceProductStatus;
 import i.f.industrialfurniture.model.ProductType;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -12,8 +12,8 @@ public record GetProductDto(
         Integer productId,
         String productName,
         String description,
-        String tag,//артикуль
-        String price,
+        String tag, // артикул
+        PriceProductStatus priceProductStatus,
         String material,
         String dimensions,
         Double weight,

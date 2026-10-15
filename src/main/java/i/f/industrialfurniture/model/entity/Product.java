@@ -24,7 +24,18 @@ public class Product {
     @Column(name = "description", length = 3000)
     private String description;
     private String tag;//артикуль
-    private String price;
+
+    @Convert(converter = i.f.industrialfurniture.model.PriceProductStatusConverter.class)
+    @Column(name = "price_product_status", nullable = false)
+    private i.f.industrialfurniture.model.PriceProductStatus priceProductStatus = i.f.industrialfurniture.model.PriceProductStatus.CHECK_PRICE;
+
+    public void setPriceProductStatus(i.f.industrialfurniture.model.PriceProductStatus priceProductStatus) {
+        this.priceProductStatus = priceProductStatus != null ? priceProductStatus : i.f.industrialfurniture.model.PriceProductStatus.CHECK_PRICE;
+    }
+
+    public void setPriceProductStatus(String status) {
+        this.priceProductStatus = i.f.industrialfurniture.model.PriceProductStatus.of(status);
+    }
     private Integer quantity;
     private String material;
     private String dimensions;

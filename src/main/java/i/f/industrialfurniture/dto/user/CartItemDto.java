@@ -1,14 +1,13 @@
 package i.f.industrialfurniture.dto.user;
 
-
-import java.math.BigDecimal;
+import i.f.industrialfurniture.model.PriceProductStatus;
 
 public record CartItemDto(
         Integer cart_item_id,
         Integer productId,
         String productName,
         Integer quantity,
-        String productPrice,
+        PriceProductStatus priceProductStatus,
         String tag,
         Boolean productActive,
         String characteristics, // Новое: детальное описание

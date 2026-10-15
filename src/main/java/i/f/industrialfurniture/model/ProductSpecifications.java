@@ -24,7 +24,12 @@ public class ProductSpecifications {
 
     public static Specification<Product> hasPriceStatus(String priceStatus) {
         return (root, query, cb) -> (priceStatus == null || priceStatus.isBlank()) ? null :
-                cb.equal(cb.lower(root.get("price")), priceStatus.trim().toLowerCase());
+                cb.equal(root.get("priceProductStatus"), PriceProductStatus.of(priceStatus));
+    }
+
+    public static Specification<Product> hasPriceProductStatus(PriceProductStatus priceProductStatus) {
+        return (root, query, cb) -> priceProductStatus == null ? null :
+                cb.equal(root.get("priceProductStatus"), priceProductStatus);
     }
 
     public static Specification<Product> priceBetween(BigDecimal min, BigDecimal max) {

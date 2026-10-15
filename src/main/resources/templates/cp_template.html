@@ -64,12 +64,12 @@
         </td>
         <td th:text="${item.characteristics}" style="font-size: 9px;"></td>
         <td th:text="${item.quantity}" style="text-align: center;"></td>
-        <td th:text="${item.productPrice != null ? item.productPrice : 'Уточните цену'}" style="text-align: center;"></td>
+        <td th:text="${item.priceProductStatus != null ? item.priceProductStatus : (item.productPrice != null ? item.productPrice : 'Уточните цену')}" style="text-align: center;"></td>
         <td th:text="${item.deliveryTerms}"></td>
     </tr>
     <tr class="total-row">
         <td colspan="5" style="text-align: right;">ИТОГО:</td>
-        <td colspan="2" th:text="${totalSum != null && totalSum.compareTo(T(java.math.BigDecimal).ZERO) > 0 ? totalSum + ' Т' : 'Уточняется у менеджера'}"></td>
+        <td colspan="2">Уточняется у менеджера</td>
     </tr>
     </tbody>
 </table>

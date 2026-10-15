@@ -32,4 +32,12 @@ public interface ProductMapper {
     // Если в DTO поле называется specifications, то эта строка не обязательна, но полезна для ясности
     @Mapping(target = "specifications", source = "specifications")
     Product createProductFromDto(CreateProductDto dto);
+
+    default String mapPriceStatusToString(i.f.industrialfurniture.model.PriceProductStatus status) {
+        return status != null ? status.value() : i.f.industrialfurniture.model.PriceProductStatus.CHECK_PRICE_VALUE;
+    }
+
+    default i.f.industrialfurniture.model.PriceProductStatus mapStringToPriceStatus(String value) {
+        return i.f.industrialfurniture.model.PriceProductStatus.of(value);
+    }
 }

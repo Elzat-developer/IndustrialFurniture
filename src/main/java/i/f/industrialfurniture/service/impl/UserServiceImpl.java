@@ -6,6 +6,7 @@ import i.f.industrialfurniture.dto.user.*;
 import i.f.industrialfurniture.model.CategorySpecifications;
 import i.f.industrialfurniture.model.CategoryType;
 import i.f.industrialfurniture.model.PaidStatus;
+import i.f.industrialfurniture.model.PriceProductStatus;
 import i.f.industrialfurniture.model.ProductType;
 import i.f.industrialfurniture.model.entity.*;
 import i.f.industrialfurniture.repositories.*;
@@ -81,7 +82,7 @@ public class UserServiceImpl implements UserService {
                             product.getId() != null ? product.getId() : null,
                             product.getProductName(),
                             item.getQuantity(),
-                            product.getPrice(),
+                            product.getPriceProductStatus(),
                             product.getTag(),
                             product.isActive(),
                             chars,
@@ -92,7 +93,7 @@ public class UserServiceImpl implements UserService {
 
         String total = "Уточните цену";
 
-        return new CartDto(cart.getId(), cartItemDtoList, total);
+        return new CartDto(cart.getId(), cartItemDtoList, PriceProductStatus.CHECK_PRICE, total);
     }
     // Вспомогательный метод для красивого вывода характеристик в PDF/Корзине
     private String formatCharacteristics(Product product) {
@@ -216,7 +217,7 @@ public class UserServiceImpl implements UserService {
             oi.setProductName(item.productName());
             oi.setTag(item.tag());
             oi.setQuantity(item.quantity());
-            oi.setPriceAtPurchase(item.productPrice());
+            oi.setPriceAtPurchase(item.priceProductStatus() != null ? item.priceProductStatus().value() : PriceProductStatus.CHECK_PRICE_VALUE);
             oi.setProductActive(item.productActive());
             return oi;
         }).toList();
@@ -284,7 +285,7 @@ public class UserServiceImpl implements UserService {
                             new OrderItemProductDTOS(
                                     item.getProductId(),
                                     item.getProductName(),
-                                    item.getPriceAtPurchase(),
+                                    PriceProductStatus.of(item.getPriceAtPurchase()),
                                     photo, // Теперь здесь реальное фото
                                     item.getProductActive()
                             )
@@ -402,7 +403,8 @@ public class UserServiceImpl implements UserService {
             map.put("tag", item.tag());
             map.put("characteristics", item.characteristics());
             map.put("quantity", item.quantity());
-            map.put("productPrice", item.productPrice());
+            map.put("productPrice", item.priceProductStatus() != null ? item.priceProductStatus().value() : PriceProductStatus.CHECK_PRICE_VALUE);
+            map.put("priceProductStatus", item.priceProductStatus() != null ? item.priceProductStatus().value() : PriceProductStatus.CHECK_PRICE_VALUE);
             map.put("deliveryTerms", item.deliveryTerms());
 
             // Магия здесь: превращаем URL в Base64 прямо перед генерацией
@@ -521,7 +523,7 @@ public class UserServiceImpl implements UserService {
         return new GetProductsUserDto(
                 product.getId(),
                 product.getProductName(),
-                product.getPrice(),
+                product.getPriceProductStatus(),
                 product.getMaterial(),
                 product.getCategory().getId(),
                 product.getProductType(),
