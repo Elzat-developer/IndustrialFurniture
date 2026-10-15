@@ -25,7 +25,7 @@ public class Order {
     @Column(name = "order_start_date")
     private LocalDateTime orderStartDate;
     @Column(name = "total_price")
-    private BigDecimal totalPrice;
+    private String totalPrice;
     @Column(name = "paid_status")
     @Enumerated(EnumType.STRING)
     private PaidStatus paidStatus;

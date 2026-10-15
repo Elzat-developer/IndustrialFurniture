@@ -76,10 +76,32 @@ public class AdminServiceImpl implements AdminService {
     private String categoryDir;
     @PersistenceContext
     private EntityManager entityManager;
+    public static String normalizePriceStatus(String input) {
+        if (input == null || input.isBlank()) {
+            return "Уточните цену";
+        }
+        String trimmed = input.trim();
+        String lower = trimmed.toLowerCase();
+        if (lower.contains("нет") || lower.contains("отсутств") || lower.contains("out")) {
+            return "Нет в наличии";
+        }
+        if (lower.contains("заказ") || lower.contains("order")) {
+            return "Под заказ";
+        }
+        if (lower.contains("уточн") || lower.contains("цен") || lower.contains("запрос") || lower.contains("price")) {
+            return "Уточните цену";
+        }
+        if (trimmed.equalsIgnoreCase("Уточните цену")) return "Уточните цену";
+        if (trimmed.equalsIgnoreCase("Нет в наличии")) return "Нет в наличии";
+        if (trimmed.equalsIgnoreCase("Под заказ")) return "Под заказ";
+        return trimmed;
+    }
+
     @Override
     @CacheEvict(value = {"products","admin_product_details","admin_products"}, allEntries = true)
     public void createProduct(CreateProductDto createProductDto,List<MultipartFile> photos) {
             Product product = productMapper.createProductFromDto(createProductDto);
+            product.setPrice(normalizePriceStatus(product.getPrice()));
             product.setActive(true);
             product.setCreatedAt(LocalDateTime.now());
             if (createProductDto.categoryId() != null){
@@ -125,6 +147,9 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new IllegalArgumentException("Product Not Found!"));
 
         productMapper.updateProductFromDto(editProduct,product);
+        if (editProduct.price() != null) {
+            product.setPrice(normalizePriceStatus(editProduct.price()));
+        }
         if (editProduct.categoryId() != null) {
             Category category = categoryRepo.findById(editProduct.categoryId())
                     .orElseThrow(() -> new IllegalArgumentException("Category Not Found!"));
@@ -223,12 +248,13 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public List<GetProductsUserDto> findProducts(Boolean active,ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice) {
+    public List<GetProductsUserDto> findProducts(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice, String status) {
             Specification<Product> spec = Specification.allOf(
-                    ProductSpecifications.hasActiveStatus(active),
+                ProductSpecifications.hasActiveStatus(active),
                 ProductSpecifications.hasType(productType),
                 ProductSpecifications.hasCategory(categoryId),
                 ProductSpecifications.hasMaterial(material),
+                ProductSpecifications.hasPriceStatus(status),
                 ProductSpecifications.priceBetween(minPrice, maxPrice)
             );
 
@@ -577,7 +603,7 @@ public class AdminServiceImpl implements AdminService {
         // 1. Базовые поля (индексы 0-7)
         product.setProductName(getSafeString(row, 0));
         product.setTag(getSafeString(row, 1));
-        product.setPrice(getSafeBigDecimal(row, 2));
+        product.setPrice(normalizePriceStatus(getSafeString(row, 2)));
         product.setMaterial(getSafeString(row, 3));
         product.setDimensions(getSafeString(row, 4));
         product.setWeight(getSafeDouble(row, 5));
@@ -783,12 +809,13 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public List<GetProductsDto> findProductsAdmin(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice) {
+    public List<GetProductsDto> findProductsAdmin(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice, String status) {
         Specification<Product> spec = Specification.allOf(
                 ProductSpecifications.hasActiveStatus(active),
                 ProductSpecifications.hasType(productType),
                 ProductSpecifications.hasCategory(categoryId),
                 ProductSpecifications.hasMaterial(material),
+                ProductSpecifications.hasPriceStatus(status),
                 ProductSpecifications.priceBetween(minPrice, maxPrice)
         );
 

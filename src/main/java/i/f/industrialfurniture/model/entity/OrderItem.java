@@ -19,7 +19,7 @@ public class OrderItem {
     private String productName;
     private String tag;//артикуль
     @Column(name = "price_at_purchase")
-    private BigDecimal priceAtPurchase;
+    private String priceAtPurchase;
     @Column(name = "product_active")
     private Boolean productActive;
     @ManyToOne

@@ -8,7 +8,7 @@ public record CartItemDto(
         Integer productId,
         String productName,
         Integer quantity,
-        BigDecimal productPrice,
+        String productPrice,
         String tag,
         Boolean productActive,
         String characteristics, // Новое: детальное описание

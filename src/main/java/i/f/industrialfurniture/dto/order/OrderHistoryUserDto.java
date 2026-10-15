@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 public record OrderHistoryUserDto(
         Integer orderId,
         String orderNumber,
-        BigDecimal totalPrice,
+        String totalPrice,
         PaidStatus paidStatus,
         LocalDateTime createOrder,
         String customerName,

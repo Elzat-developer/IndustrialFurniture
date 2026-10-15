@@ -24,7 +24,7 @@ public class Product {
     @Column(name = "description", length = 3000)
     private String description;
     private String tag;//артикуль
-    private BigDecimal price;
+    private String price;
     private Integer quantity;
     private String material;
     private String dimensions;

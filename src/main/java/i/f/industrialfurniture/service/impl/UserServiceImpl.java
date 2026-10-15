@@ -90,9 +90,7 @@ public class UserServiceImpl implements UserService {
                     );
                 }).toList();
 
-        BigDecimal total = cartItemDtoList.stream()
-                .map(item -> item.productPrice().multiply(BigDecimal.valueOf(item.quantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        String total = "Уточните цену";
 
         return new CartDto(cart.getId(), cartItemDtoList, total);
     }
@@ -447,17 +445,10 @@ public class UserServiceImpl implements UserService {
 
         int targetSize = 4;
 
-        // 1. Пытаемся найти идеальные совпадения (+/- 20% цены и тот же тип)
-        BigDecimal price = current.getPrice();
-        BigDecimal minPrice = price.multiply(BigDecimal.valueOf(0.8));
-        BigDecimal maxPrice = price.multiply(BigDecimal.valueOf(1.2));
-
         List<Product> resultList = new ArrayList<>(productRepo.findSmartSimilar(
                 current.getCategory().getId(),
                 productId,
                 current.getProductType(),
-                minPrice,
-                maxPrice,
                 PageRequest.of(0, targetSize)
         ));
 
@@ -585,11 +576,11 @@ public class UserServiceImpl implements UserService {
                     .append(item.getProductName())
                     .append("\n   🧩 *Арт:* ").append(item.getTag()) // Добавили артикул согласно ТЗ
                     .append("\n   🔢 *Кол-во:* ").append(item.getQuantity()).append(" шт.")
-                    .append("\n   💵 *Цена:* ").append(item.getPriceAtPurchase()).append(" KZT\n\n");
+                    .append("\n   📌 *Статус:* ").append(item.getPriceAtPurchase() != null ? item.getPriceAtPurchase() : "Уточните цену").append("\n\n");
         }
 
         sb.append("--------------------------\n");
-        sb.append("💰 *ИТОГО К ОПЛАТЕ:* *").append(order.getTotalPrice()).append(" KZT*");
+        sb.append("💰 *ИТОГО:* *").append(order.getTotalPrice() != null ? order.getTotalPrice() : "Уточните цену").append("*");
 
         // Кодируем для URL
         String encodedMessage = URLEncoder.encode(sb.toString(), StandardCharsets.UTF_8);

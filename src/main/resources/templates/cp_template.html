@@ -44,8 +44,7 @@
         <th>Наименование</th>
         <th style="width: 35%;">Характеристики</th>
         <th>Кол-во</th>
-        <th>Цена (Т)</th>
-        <th>Сумма (Т)</th>
+        <th>Статус</th>
         <th>Срок</th>
     </tr>
     </thead>
@@ -65,13 +64,12 @@
         </td>
         <td th:text="${item.characteristics}" style="font-size: 9px;"></td>
         <td th:text="${item.quantity}" style="text-align: center;"></td>
-        <td th:text="${#numbers.formatDecimal(item.productPrice, 0, 'WHITESPACE', 0, 'POINT')}"></td>
-        <td th:text="${#numbers.formatDecimal(item.productPrice * item.quantity, 0, 'WHITESPACE', 0, 'POINT')}"></td>
+        <td th:text="${item.productPrice != null ? item.productPrice : 'Уточните цену'}" style="text-align: center;"></td>
         <td th:text="${item.deliveryTerms}"></td>
     </tr>
     <tr class="total-row">
-        <td colspan="6" style="text-align: right;">ИТОГО К ОПЛАТЕ:</td>
-        <td colspan="2" th:text="${#numbers.formatDecimal(totalSum, 0, 'WHITESPACE', 0, 'POINT')} + ' Т'"></td>
+        <td colspan="5" style="text-align: right;">ИТОГО:</td>
+        <td colspan="2" th:text="${totalSum != null && totalSum.compareTo(T(java.math.BigDecimal).ZERO) > 0 ? totalSum + ' Т' : 'Уточняется у менеджера'}"></td>
     </tr>
     </tbody>
 </table>

@@ -58,7 +58,8 @@ public class UserController {
             @RequestParam(required = false) Integer categoryId,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
-            @RequestParam(required = false) String material
+            @RequestParam(required = false) String material,
+            @RequestParam(required = false) String status
     ) {
         List<GetProductsUserDto> products = adminService.findProducts(
                 active,
@@ -66,19 +67,15 @@ public class UserController {
                 categoryId,
                 material,
                 minPrice,
-                maxPrice
+                maxPrice,
+                status
         );
 
         return ResponseEntity.ok(products);
     }
     @PostMapping("/generate_cp_pdf")
     public ResponseEntity<byte[]> downloadPdf(@RequestBody List<CartItemDto> cartItemDtoList) {
-        // 1. Считаем общую сумму (лучше сделать это здесь или в сервисе перед передачей в PDF)
-        BigDecimal totalSum = cartItemDtoList.stream()
-                .map(item -> item.productPrice().multiply(BigDecimal.valueOf(item.quantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // 2. Вызываем новый метод генерации PDF
+        BigDecimal totalSum = BigDecimal.ZERO;
         byte[] fileContent = userService.generateCpPdf(cartItemDtoList, totalSum);
 
         // 3. Возвращаем PDF ответ

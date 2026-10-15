@@ -129,7 +129,8 @@ public class AdminController {
             @RequestParam(required = false) Integer categoryId,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
-            @RequestParam(required = false) String material
+            @RequestParam(required = false) String material,
+            @RequestParam(required = false) String status
     ) {
         List<GetProductsDto> products = adminService.findProductsAdmin(
                 active,
@@ -137,7 +138,8 @@ public class AdminController {
                 categoryId,
                 material,
                 minPrice,
-                maxPrice
+                maxPrice,
+                status
         );
 
         return ResponseEntity.ok(products);

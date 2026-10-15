@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 public record GetProductsUserDto(
         Integer productId,
         String productName,
-        BigDecimal productPrice,
+        String productPrice,
         String material,
         Integer categoryId,
         ProductType productType,

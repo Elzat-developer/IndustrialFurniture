@@ -10,7 +10,7 @@ public record CreateProductDto(
         String productName,
         String description,
         String tag,//артикуль
-        BigDecimal price,
+        String price,
         String material,
         String dimensions,
         Double weight,

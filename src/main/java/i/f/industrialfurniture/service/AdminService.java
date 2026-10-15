@@ -22,7 +22,10 @@ public interface AdminService {
     List<GetCategories> getCategories(CategoryType categoryType,Boolean active);
     void editCategory(EditCategoryDto editCategory);
     void deleteCategory(Integer categoryId);
-    List<GetProductsUserDto> findProducts(Boolean active,ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice);
+    List<GetProductsUserDto> findProducts(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice, String status);
+    default List<GetProductsUserDto> findProducts(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice) {
+        return findProducts(active, productType, categoryId, material, minPrice, maxPrice, null);
+    }
     void createTechSpec(CreateTechSpec createTechSpec);
     List<GetTechSpecDto> getTechSpecs();
     void editTechSpec(Integer tech_spec_id,EditTechSpec techSpecDto);
@@ -43,7 +46,10 @@ public interface AdminService {
 
     void editCategoryActive(Integer categoryId);
 
-    List<GetProductsDto> findProductsAdmin(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice);
+    List<GetProductsDto> findProductsAdmin(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice, String status);
+    default List<GetProductsDto> findProductsAdmin(Boolean active, ProductType productType, Integer categoryId, String material, BigDecimal minPrice, BigDecimal maxPrice) {
+        return findProductsAdmin(active, productType, categoryId, material, minPrice, maxPrice, null);
+    }
 
     List<ImportHistoriesDto> getImportHistories();
 

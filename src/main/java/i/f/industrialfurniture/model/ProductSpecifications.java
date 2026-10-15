@@ -22,14 +22,13 @@ public class ProductSpecifications {
                 cb.equal(cb.lower(root.get("material")), material.toLowerCase());
     }
 
+    public static Specification<Product> hasPriceStatus(String priceStatus) {
+        return (root, query, cb) -> (priceStatus == null || priceStatus.isBlank()) ? null :
+                cb.equal(cb.lower(root.get("price")), priceStatus.trim().toLowerCase());
+    }
+
     public static Specification<Product> priceBetween(BigDecimal min, BigDecimal max) {
-        return (root, query, cb) -> {
-            if (min == null && max == null) return null;
-            // Используем поле "price", как в твоем Entity
-            if (min != null && max != null) return cb.between(root.get("price"), min, max);
-            return min != null ? cb.greaterThanOrEqualTo(root.get("price"), min) :
-                    cb.lessThanOrEqualTo(root.get("price"), max);
-        };
+        return (root, query, cb) -> null;
     }
 
     public static Specification<Product> hasType(ProductType productType) {

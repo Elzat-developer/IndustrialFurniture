@@ -6,5 +6,5 @@ import java.util.List;
 public record CartDto(
         Integer cartId,
         List<CartItemDto> items,
-        BigDecimal totalPrice
+        String totalPrice
 ) {}

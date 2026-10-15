@@ -11,7 +11,7 @@ public record GetOrdersDto(
         String customerName,
         String customerPhone,
         LocalDateTime orderStartDate,
-        BigDecimal totalPrice,
+        String totalPrice,
         PaidStatus paidStatus
 ) {
 }

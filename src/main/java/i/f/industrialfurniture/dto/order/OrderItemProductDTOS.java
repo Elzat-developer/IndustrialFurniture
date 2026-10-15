@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 public record OrderItemProductDTOS(
         Integer productId,
         String productName,
-        BigDecimal productPrice,
+        String productPrice,
         GetPhotoDto photo,
         Boolean active
 ) {

@@ -25,15 +25,11 @@ public interface ProductRepo extends JpaRepository<Product,Integer>, JpaSpecific
     @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId " +
             "AND p.id != :productId " +
             "AND p.active = true " +
-            "AND p.price BETWEEN :minPrice AND :maxPrice " +
-            // Убрали RAND(). Лучше сортировать предсказуемо и быстро, а шафлить в Java.
             "ORDER BY CASE WHEN p.productType = :pType THEN 0 ELSE 1 END, p.createdAt DESC")
     List<Product> findSmartSimilar(
             @Param("categoryId") Integer categoryId,
             @Param("productId") Integer productId,
             @Param("pType") ProductType pType,
-            @Param("minPrice") BigDecimal minPrice,
-            @Param("maxPrice") BigDecimal maxPrice,
             Pageable pageable);
 
     @EntityGraph(attributePaths = {"photos"})

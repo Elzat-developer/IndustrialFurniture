@@ -10,7 +10,7 @@ import java.util.List;
 public record OrderDetailsDto(
         Integer orderId,
         String orderNumber,
-        BigDecimal totalPrice,
+        String totalPrice,
         PaidStatus paidStatus,
         LocalDateTime createOrder,
         String customerName,
