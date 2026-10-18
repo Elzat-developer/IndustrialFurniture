@@ -1,15 +1,19 @@
 package i.f.industrialfurniture.dto.user;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import i.f.industrialfurniture.model.PriceProductStatus;
 import i.f.industrialfurniture.model.ProductType;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record CreateProductDto(
         String productName,
         String description,
         String tag, // артикул
+        @JsonAlias({"price", "productPrice"})
         PriceProductStatus priceProductStatus,
         String material,
         String dimensions,

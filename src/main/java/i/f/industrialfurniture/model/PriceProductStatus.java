@@ -131,7 +131,22 @@ public record PriceProductStatus(
         return trimmed;
     }
 
-    @JsonCreator
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+    public static PriceProductStatus of(Object value) {
+        if (value == null) {
+            return CHECK_PRICE;
+        }
+        if (value instanceof PriceProductStatus pps) {
+            return pps;
+        }
+        if (value instanceof java.util.Map<?, ?> map) {
+            Object v = map.get("value");
+            if (v == null) v = map.get("priceProductStatus");
+            return of(v);
+        }
+        return new PriceProductStatus(String.valueOf(value));
+    }
+
     public static PriceProductStatus of(String value) {
         return new PriceProductStatus(value);
     }
