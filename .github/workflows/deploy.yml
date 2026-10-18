@@ -26,7 +26,8 @@ jobs:
             # Подтягиваем последние изменения из Git
             git pull origin main
             
-            # Пересобираем и перезапускаем Docker-контейнеры в фоновом режиме
-            docker compose up -d --build
+            # Пересобираем бэкенд без кэша и перезапускаем
+            docker compose build --no-cache backend
+            docker compose up -d --force-recreate backend
             
             echo "Deployment successful! 🚀"

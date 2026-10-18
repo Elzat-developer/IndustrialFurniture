@@ -136,6 +136,8 @@ public class AdminServiceImpl implements AdminService {
         productMapper.updateProductFromDto(editProduct,product);
         if (editProduct.priceProductStatus() != null) {
             product.setPriceProductStatus(editProduct.priceProductStatus());
+        } else {
+            product.setPriceProductStatus(PriceProductStatus.CHECK_PRICE);
         }
         if (editProduct.categoryId() != null) {
             Category category = categoryRepo.findById(editProduct.categoryId())
@@ -266,7 +268,7 @@ public class AdminServiceImpl implements AdminService {
                 product.getProductName(),
                 product.getPriceProductStatus(),
                 product.getMaterial(),
-                product.getCategory().getId(),
+                product.getCategory() != null ? product.getCategory().getId() : null,
                 product.getProductType(),
                 product.isActive(),
                 photoDto

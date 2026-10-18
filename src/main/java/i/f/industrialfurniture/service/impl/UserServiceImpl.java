@@ -578,7 +578,7 @@ public class UserServiceImpl implements UserService {
                 product.getProductName(),
                 product.getPriceProductStatus(),
                 product.getMaterial(),
-                product.getCategory().getId(),
+                product.getCategory() != null ? product.getCategory().getId() : null,
                 product.getProductType(),
                 product.isActive(),
                 photoDto
