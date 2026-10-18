@@ -1173,6 +1173,7 @@ public class AdminServiceImpl implements AdminService {
                 product.getId() == null ? null : product.getId(),
                 product.getProductName(),
                 product.getTag(),
+                product.getPriceProductStatus(),
                 product.getCreatedAt(),
                 product.getUpdatedAt(),
                 product.getMaterial(),

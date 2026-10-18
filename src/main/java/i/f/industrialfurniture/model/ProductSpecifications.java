@@ -23,8 +23,20 @@ public class ProductSpecifications {
     }
 
     public static Specification<Product> hasPriceStatus(String priceStatus) {
-        return (root, query, cb) -> (priceStatus == null || priceStatus.isBlank()) ? null :
-                cb.equal(root.get("priceProductStatus"), PriceProductStatus.of(priceStatus));
+        return (root, query, cb) -> {
+            if (priceStatus == null || priceStatus.isBlank()) {
+                return null;
+            }
+            String trimmed = priceStatus.trim();
+            if (trimmed.equalsIgnoreCase("with_price") || trimmed.equalsIgnoreCase("has_price")) {
+                return cb.not(root.get("priceProductStatus").in(
+                        PriceProductStatus.CHECK_PRICE,
+                        PriceProductStatus.OUT_OF_STOCK,
+                        PriceProductStatus.ON_ORDER
+                ));
+            }
+            return cb.equal(root.get("priceProductStatus"), PriceProductStatus.of(trimmed));
+        };
     }
 
     public static Specification<Product> hasPriceProductStatus(PriceProductStatus priceProductStatus) {

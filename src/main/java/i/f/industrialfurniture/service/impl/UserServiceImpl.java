@@ -91,9 +91,32 @@ public class UserServiceImpl implements UserService {
                     );
                 }).toList();
 
-        String total = "Уточните цену";
+        BigDecimal sum = BigDecimal.ZERO;
+        boolean allNumeric = !cartItemDtoList.isEmpty();
+        boolean hasAnyNumeric = false;
 
-        return new CartDto(cart.getId(), cartItemDtoList, PriceProductStatus.CHECK_PRICE, total);
+        for (CartItemDto item : cartItemDtoList) {
+            if (item.priceProductStatus() != null && item.priceProductStatus().isNumeric()) {
+                BigDecimal itemPrice = item.priceProductStatus().getNumericPrice();
+                sum = sum.add(itemPrice.multiply(BigDecimal.valueOf(item.quantity())));
+                hasAnyNumeric = true;
+            } else {
+                allNumeric = false;
+            }
+        }
+
+        String total;
+        if (cartItemDtoList.isEmpty()) {
+            total = "0 ₸";
+        } else if (allNumeric) {
+            total = PriceProductStatus.formatPrice(sum);
+        } else if (hasAnyNumeric) {
+            total = "От " + PriceProductStatus.formatPrice(sum) + " (уточняется)";
+        } else {
+            total = PriceProductStatus.CHECK_PRICE_VALUE;
+        }
+
+        return new CartDto(cart.getId(), cartItemDtoList, PriceProductStatus.of(total), total);
     }
     // Вспомогательный метод для красивого вывода характеристик в PDF/Корзине
     private String formatCharacteristics(Product product) {
@@ -397,27 +420,57 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public byte[] generateCpPdf(List<CartItemDto> items, BigDecimal totalSum) {
-        List<Map<String, Object>> pdfItems = items.stream().map(item -> {
+        BigDecimal calculatedSum = BigDecimal.ZERO;
+        boolean allNumeric = !items.isEmpty();
+        boolean hasAnyNumeric = false;
+
+        List<Map<String, Object>> pdfItems = new ArrayList<>();
+        for (CartItemDto item : items) {
             Map<String, Object> map = new HashMap<>();
             map.put("productName", item.productName());
             map.put("tag", item.tag());
             map.put("characteristics", item.characteristics());
             map.put("quantity", item.quantity());
-            map.put("productPrice", item.priceProductStatus() != null ? item.priceProductStatus().value() : PriceProductStatus.CHECK_PRICE_VALUE);
-            map.put("priceProductStatus", item.priceProductStatus() != null ? item.priceProductStatus().value() : PriceProductStatus.CHECK_PRICE_VALUE);
+
+            PriceProductStatus status = item.priceProductStatus() != null
+                    ? item.priceProductStatus()
+                    : PriceProductStatus.CHECK_PRICE;
+
+            String displayPrice = status.getFormattedDisplay();
+            map.put("productPrice", displayPrice);
+            map.put("priceProductStatus", displayPrice);
+            map.put("displayPrice", displayPrice);
             map.put("deliveryTerms", item.deliveryTerms());
 
-            // Магия здесь: превращаем URL в Base64 прямо перед генерацией
+            if (status.isNumeric()) {
+                calculatedSum = calculatedSum.add(status.getNumericPrice().multiply(BigDecimal.valueOf(item.quantity())));
+                hasAnyNumeric = true;
+            } else {
+                allNumeric = false;
+            }
+
             if (item.photoDto() != null) {
                 map.put("photoBase64", getBase64ImageFromUrl(item.photoDto().photoURL()));
             }
 
-            return map;
-        }).toList();
+            pdfItems.add(map);
+        }
+
+        String totalSumFormatted;
+        if (items.isEmpty()) {
+            totalSumFormatted = "0 ₸";
+        } else if (allNumeric) {
+            totalSumFormatted = PriceProductStatus.formatPrice(calculatedSum);
+        } else if (hasAnyNumeric) {
+            totalSumFormatted = "От " + PriceProductStatus.formatPrice(calculatedSum) + " (уточняется у менеджера)";
+        } else {
+            totalSumFormatted = "Уточняется у менеджера";
+        }
 
         Context context = new Context();
         context.setVariable("items", pdfItems);
-        context.setVariable("totalSum", totalSum);
+        context.setVariable("totalSum", calculatedSum);
+        context.setVariable("totalSumFormatted", totalSumFormatted);
         context.setVariable("date", LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")));
 
         String htmlContent = templateEngine.process("cp_template", context);
@@ -576,9 +629,21 @@ public class UserServiceImpl implements UserService {
             OrderItem item = items.get(i);
             sb.append(i + 1).append(". ")
                     .append(item.getProductName())
-                    .append("\n   🧩 *Арт:* ").append(item.getTag()) // Добавили артикул согласно ТЗ
-                    .append("\n   🔢 *Кол-во:* ").append(item.getQuantity()).append(" шт.")
-                    .append("\n   📌 *Статус:* ").append(item.getPriceAtPurchase() != null ? item.getPriceAtPurchase() : "Уточните цену").append("\n\n");
+                    .append("\n   🧩 *Арт:* ").append(item.getTag())
+                    .append("\n   🔢 *Кол-во:* ").append(item.getQuantity()).append(" шт.");
+
+            String priceVal = item.getPriceAtPurchase() != null ? item.getPriceAtPurchase() : PriceProductStatus.CHECK_PRICE_VALUE;
+            if (PriceProductStatus.isNumericValue(priceVal)) {
+                BigDecimal unitPrice = PriceProductStatus.parseNumeric(priceVal);
+                BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
+                sb.append("\n   💵 *Цена:* ").append(PriceProductStatus.formatPrice(unitPrice));
+                if (item.getQuantity() > 1) {
+                    sb.append(" (Сумма: ").append(PriceProductStatus.formatPrice(lineTotal)).append(")");
+                }
+                sb.append("\n\n");
+            } else {
+                sb.append("\n   📌 *Статус:* ").append(priceVal).append("\n\n");
+            }
         }
 
         sb.append("--------------------------\n");

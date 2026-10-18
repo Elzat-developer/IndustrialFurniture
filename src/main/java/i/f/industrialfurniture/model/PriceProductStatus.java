@@ -4,7 +4,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.List;
+import java.util.Locale;
 
 public record PriceProductStatus(
         @JsonValue
@@ -44,9 +48,87 @@ public record PriceProductStatus(
                     || trimmed.equalsIgnoreCase("Уточните_цену")) {
                 value = CHECK_PRICE_VALUE;
             } else {
-                value = CHECK_PRICE_VALUE;
+                BigDecimal numeric = parseNumeric(trimmed);
+                if (numeric != null && numeric.compareTo(BigDecimal.ZERO) > 0) {
+                    value = numeric.stripTrailingZeros().toPlainString();
+                } else {
+                    value = CHECK_PRICE_VALUE;
+                }
             }
         }
+    }
+
+    public boolean isNumeric() {
+        return parseNumeric(value) != null && parseNumeric(value).compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    public BigDecimal getNumericPrice() {
+        return parseNumeric(value);
+    }
+
+    public String getFormattedDisplay() {
+        return formatPrice(value);
+    }
+
+    public static BigDecimal parseNumeric(String input) {
+        if (input == null || input.isBlank()) {
+            return null;
+        }
+        String clean = input.trim()
+                .replace(" ", "")
+                .replace("\u00A0", "")
+                .replace("₸", "")
+                .replace("KZT", "")
+                .replace("kzt", "")
+                .replace("руб", "")
+                .replace("р.", "")
+                .replace("тг", "")
+                .replace("т", "")
+                .replace("Т", "");
+        if (clean.isEmpty()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(clean);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static boolean isNumericValue(String input) {
+        BigDecimal num = parseNumeric(input);
+        return num != null && num.compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    public static String formatPrice(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return CHECK_PRICE_VALUE;
+        }
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(new Locale("ru", "RU"));
+        symbols.setGroupingSeparator(' ');
+        DecimalFormat df = new DecimalFormat("#,##0", symbols);
+        return df.format(amount) + " ₸";
+    }
+
+    public static String formatPrice(String input) {
+        if (input == null || input.isBlank()) {
+            return CHECK_PRICE_VALUE;
+        }
+        BigDecimal num = parseNumeric(input);
+        if (num != null && num.compareTo(BigDecimal.ZERO) > 0) {
+            return formatPrice(num);
+        }
+        String trimmed = input.trim();
+        if (trimmed.equalsIgnoreCase("OUT_OF_STOCK") || trimmed.equalsIgnoreCase("out_of_stock")) {
+            return OUT_OF_STOCK_VALUE;
+        }
+        if (trimmed.equalsIgnoreCase("ON_ORDER") || trimmed.equalsIgnoreCase("on_order")) {
+            return ON_ORDER_VALUE;
+        }
+        if (trimmed.equalsIgnoreCase("CHECK_PRICE") || trimmed.equalsIgnoreCase("check_price")) {
+            return CHECK_PRICE_VALUE;
+        }
+        return trimmed;
     }
 
     @JsonCreator
@@ -63,3 +145,4 @@ public record PriceProductStatus(
         return value;
     }
 }
+
